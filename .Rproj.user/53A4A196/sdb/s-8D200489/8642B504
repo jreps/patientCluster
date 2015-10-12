@@ -1,0 +1,17 @@
+{
+    "contents" : "# create clusters using hisorical data\ncreateClusters <- function(cohortid, agegroup, gender,\n                           outputfolder, method=c('kmeans',...), clusterSize=10,\n                           type=c('history', 'stats'),\n                           covariatesToInclude,covariatesToExclude)\n{\n  # chect input\n  test <- .checkInput(cohortid, clusterSize=10, outputfolder, method)\n  if(test){\n    writeLines('Incorrect input...')\n    return()}\n  # check if cohort data already extracted (if not call extractData())\n  dataExists <- .dataExists(dbconnection, cohortid, agegroup, gender, type)\n\n  # if the data does not exist\n  if(!dataExists){\n    writeLines(\"No data...Extracting cohort's agegroup/gender history data\")\n    extractData(dbconnection, outputfolder, cohortid, agegroup, gender, method,\n                type)\n  }\n\n  # check for saved ffdf and load if exists:\n  load.ffdf(file.path(getwd(), outputFolder,cohortid,'extractedData', paste(agegroup,'_',gender, sep='')))\n\n  # perform clustering\n  clust.res <- kmeans(clust.data, centers=clusterSize)\n\n  # append cluster results to data\n  clust.res <- do.call(\"ffdf\", c(physical(cohort.data), physical(as.ffdf(cluster.res$x))))\n  colnames(clust.res) <- c(colnames(cohort.data), 'Cluster')\n\n  # save results to folder\n  save.ffdf(clust.res, file.path(getwd(), outputFolder,cohortid,'clusterResults',paste(agegroup,'_',gender, sep='')))\n\n\n}\n\n.checkinput<- function(){\n  test <- class(cohortid)=='' & class(clusterSize)=='' &\n    class(outputfolder)=='' & class(method)==''\n  return(test)\n}\n\n.dataExists<- function(){\n  return(dir.exists(file.path(getwd(), outputFolder,'extractedData', paste(cohortid,'_',agegroup,'_',gender, sep=''))))\n}\n",
+    "created" : 1444649739141.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3627150071",
+    "id" : "8642B504",
+    "lastKnownWriteTime" : 1444643499,
+    "path" : "~/patientCluster/patientCluster/R/clusterRun.R",
+    "project_path" : "R/clusterRun.R",
+    "properties" : {
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "type" : "r_source"
+}

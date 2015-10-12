@@ -1,0 +1,10 @@
+Package: patientCluster
+Type: Package
+Title: Performs patient clustering for patient cohorts using OHDSI CDM v5
+Version: 0.1
+Date: 2015-10-10
+Author: Jenna Reps
+Maintainer: Jenna Reps <reps12@hotmail.com>
+Description: More about what it does (maybe more than one line)
+License: What license is it under?
+LazyData: TRUE

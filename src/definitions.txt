@@ -1,0 +1,34 @@
+Depression:21001022,440383
+Cancer Screen:4048727
+Malignancy:443392
+T2DM:201826
+T1DM:201254
+Cardiovascular disorder:35204998,4042641
+Heart failure:316139
+Hypertension:21001432,320128
+Stroke:500003201
+Renal impairment:4030518
+Chronic renal impairment:196991
+Diseases of liver:194984
+Irritable bowel syndrome:75576,21002116
+Obesity:433736,21000789
+Alcoholism:21000919,4347365,4340743
+Smoking cessation:21011008
+HIV:21000157
+Fracture of bone:75053
+Allergy to substance:4169307
+Asthma:317009,21001866
+Osteoarthritis:80180
+Tuberculosis:434557,21000039
+Meningitis:435785
+Dementia:4182210
+Disease caused by parasite:432251
+Herpes:435463
+Shingles:21000169
+Pregnancy, childbirth and puerperium finding:4088927
+Eating disorder:439002
+Chlamydia/gonorrhea:21000213,438066,21002437,21000285,21002438,433417,21000260
+
+
+
+

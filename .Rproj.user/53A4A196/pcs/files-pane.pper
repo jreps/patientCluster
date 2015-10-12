@@ -1,0 +1,9 @@
+{
+    "path" : "~/patientCluster/patientCluster",
+    "sortOrder" : [
+        {
+            "ascending" : true,
+            "columnIndex" : 2
+        }
+    ]
+}

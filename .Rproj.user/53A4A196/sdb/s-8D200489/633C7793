@@ -1,0 +1,18 @@
+{
+    "contents" : "# visualising the clusters\nrequires(ggplot2)\n\nclusterVisual <-function(){\n\n  # check input\n\n  # load the cluster results\n\n  # plot the results - save to folder clusterPlots\n\n}\n",
+    "created" : 1444571634754.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "962409489",
+    "id" : "633C7793",
+    "lastKnownWriteTime" : 1444571898,
+    "path" : "~/patientCluster/patientCluster/R/clusterVisual.R",
+    "project_path" : "R/clusterVisual.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "type" : "r_source"
+}
