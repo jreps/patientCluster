@@ -39,7 +39,7 @@ runMain <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseSchem
     require(plyr)
 
 
-    writeLines(paste(cohortid))
+    writeLines(paste('Performing clustering for: ',cohortid, sep=''))
     # SET WORKING DIRECTORY
     ifelse(!dir.exists(file.path(outputFolder )),
            dir.create(file.path(outputFolder)), FALSE)
@@ -58,10 +58,10 @@ runMain <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseSchem
                covariatesToInclude=covariatesToInclude,covariatesToExclude=covariatesToExclude)
 
     # evaluate clustering - clustereval
-    clusterEval(cohortid=10, agegroup, gender, type)
+    clusterEval(cohortid, agegroup, gender, type)
 
     # visualise clusters - clusterVisual
-    clusterVisual(cohortid=cohortid, agegroup, gender, type)
+    clusterVisual(cohortid, agegroup, gender, type)
 
     writeLines('Clustering completed...')
   }

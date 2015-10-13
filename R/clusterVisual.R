@@ -9,22 +9,20 @@
 #' @examples
 #' clusterVisual()
 #'
-clusterVisual <-function(cohortid=1, agegroup=3, gender=8507, type='history'){
+clusterVisual <-function(cohortid=1, agegroup=3, gender=8507, type='history',
+                        plot_choice=c('bar','pie')){
   if(!dir.exists(file.path(getwd(), cohortid,'plots'))){dir.create(file.path(getwd(), cohortid,'plots'))}
   plot_loc <- file.path(getwd(), cohortid,'plots')
 
-  if( file.exists(file.path(getwd(), cohortid,'clusterSummary',type,paste('mean',agegroup,'_',gender,'.csv'))) &
-      file.exists(file.path(getwd(), cohortid,'clusterSummary',type,paste('median',agegroup,'_',gender,'.csv'))) &
-      file.exists(file.path(getwd(), cohortid,'clusterSummary',type,paste('sum',agegroup,'_',gender,'.csv'))) ){
+  if( file.exists(file.path(getwd(), cohortid,'clusterSummary',type,paste('mean',agegroup,'_',gender,'.csv',sep=''))) &
+      file.exists(file.path(getwd(), cohortid,'clusterSummary',type,paste('median',agegroup,'_',gender,'.csv',sep=''))) &
+      file.exists(file.path(getwd(), cohortid,'clusterSummary',type,paste('sum',agegroup,'_',gender,'.csv',sep=''))) ){
     # check input
     # load the cluster results
     if(type=='history'){
-      evalResults.mean <- read.csv(file.path(getwd(), cohortid,'clusterSummary',type,paste('mean',agegroup,'_',gender,'.csv', sep='')),
-                row.names=FALSE)
-      evalResults.median <- write.csv(file.path(getwd(), cohortid,'clusterSummary',type,paste('median',agegroup,'_',gender,'.csv', sep='')),
-                row.names=FALSE)
-      evalResults.sum <- write.csv(file.path(getwd(), cohortid,'clusterSummary',type,paste('sum',agegroup,'_',gender,'.csv', sep='')),
-                                      row.names=FALSE)
+      evalResults.mean <- read.csv(file.path(getwd(), cohortid,'clusterSummary',type,paste('mean',agegroup,'_',gender,'.csv', sep='')))
+      evalResults.median <- read.csv(file.path(getwd(), cohortid,'clusterSummary',type,paste('median',agegroup,'_',gender,'.csv', sep='')))
+      evalResults.sum <- read.csv(file.path(getwd(), cohortid,'clusterSummary',type,paste('sum',agegroup,'_',gender,'.csv', sep='')))
       evalResults.sum <- as.data.frame(evalResults.sum)
       evalResults.mean <- as.data.frame(evalResults.mean)
       evalResults.median <- as.data.frame(evalResults.median)
@@ -36,6 +34,7 @@ clusterVisual <-function(cohortid=1, agegroup=3, gender=8507, type='history'){
         sum.melt <- melt(evalResults.sum, id=c("cluster"))
         pdf(file = file.path(plot_loc, paste(type,'_pie_raw_',agegroup,'_',gender,'.pdf', sep='')),
             paper='a4r' )
+        print(
         ggplot(sum.melt, aes(x=factor(1), y=value, fill=as.factor(cluster)))+
           geom_bar(width = 1, stat = "identity",position = 'fill') +
           coord_polar(theta = "y") +
@@ -46,13 +45,14 @@ clusterVisual <-function(cohortid=1, agegroup=3, gender=8507, type='history'){
                 axis.title.x = element_blank(),
                 axis.title.y = element_blank()) +
           labs(fill='Cluster') + scale_fill_manual(values=cbPalette)
-
+        )
         dev.off()
 
         # now when normalised:
         mean.melt <- melt(evalResults.mean, id=c("cluster"))
         pdf(file = file.path(plot_loc, paste(type,'_pie_norm_',agegroup,'_',gender,'.pdf', sep='')),
             paper='a4r')
+        print(
         ggplot(mean.melt, aes(x=factor(1), y=value, fill=as.factor(cluster)))+
             geom_bar(width = 1, stat = "identity",position = 'fill') +
             coord_polar(theta = "y") +
@@ -63,6 +63,7 @@ clusterVisual <-function(cohortid=1, agegroup=3, gender=8507, type='history'){
                   axis.title.x = element_blank(),
                   axis.title.y = element_blank()) +
            labs(fill='Cluster') + scale_fill_manual(values=cbPalette)
+        )
         dev.off()
 
       }
@@ -77,6 +78,7 @@ clusterVisual <-function(cohortid=1, agegroup=3, gender=8507, type='history'){
 
         pdf(file = file.path(plot_loc, paste(type,'_bar_raw_',agegroup,'_',gender,'.pdf', sep='')),
             paper='a4r')
+        print(
           ggplot(sum.melt, aes(x=factor(1), y=value, fill=as.factor(cluster)))+
             geom_bar(width = 1, stat = "identity",position="dodge") +
             facet_wrap(~variable,scales = "free") +
@@ -86,12 +88,14 @@ clusterVisual <-function(cohortid=1, agegroup=3, gender=8507, type='history'){
                   axis.title.x = element_blank(),
                   axis.title.y = element_blank()) +
             labs(fill='Cluster') + scale_fill_manual(values=cbPalette)
+        )
         dev.off()
 
         # now when normalised:
         mean.melt <- melt(evalResults.mean, id=c("cluster"))
         pdf(file = file.path(plot_loc, paste(type,'_bar_norm_',agegroup,'_',gender,'.pdf', sep='')),
             paper='a4r')
+        print(
           ggplot(mean.melt, aes(x=factor(1), y=value, fill=as.factor(cluster)))+
             geom_bar(width = 1, stat = "identity",position="dodge") +
             facet_wrap(~variable,scales = "free") +
@@ -101,14 +105,14 @@ clusterVisual <-function(cohortid=1, agegroup=3, gender=8507, type='history'){
                   axis.title.x = element_blank(),
                   axis.title.y = element_blank()) +
             labs(fill='Cluster') + scale_fill_manual(values=cbPalette)
+        )
         dev.off()
       }
     }
 
 
     if(type=='stats'){
-      evalResults.mean <- read.csv(file.path(getwd(), cohortid,'clusterSummary',type,paste('mean',agegroup,'_',gender,'.csv', sep='')),
-                                   row.names=FALSE)
+      evalResults.mean <- read.csv(file.path(getwd(), cohortid,'clusterSummary',type,paste('mean',agegroup,'_',gender,'.csv', sep='')))
       evalResults.mean <- as.data.frame(evalResults.mean)
       mean.melt <- melt(evalResults.mean, id=c("cluster"))
       mean.melt$category <- apply(mean.melt, 1, function(x) strsplit(x[2],'_')[[1]][1])
@@ -118,6 +122,7 @@ clusterVisual <-function(cohortid=1, agegroup=3, gender=8507, type='history'){
 
       pdf(file = file.path(plot_loc, paste(type,'_stats_norm_',agegroup,'_',gender,'.pdf', sep='')),
           paper='a4r')
+      print(
       ggplot(mean.melt, aes(x=time, y=value,color=cluster, group=cluster))+
         geom_line(aes(linetype=cluster)) +
         geom_point(aes(shape=cluster), size = 2.5) +
@@ -125,6 +130,7 @@ clusterVisual <-function(cohortid=1, agegroup=3, gender=8507, type='history'){
         scale_shape_manual(values = c(0, 5, 6, 15,3,9,20,2,11,18)) +
         labs(x = "months prior to index", y='Number of events') +
         scale_x_continuous(breaks=seq(0, 12, 1))
+      )
       dev.off()
 
     }

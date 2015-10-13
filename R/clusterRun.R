@@ -44,13 +44,17 @@ clusterRun <- function(cohortid=1, agegroup=3, gender=8507,type='history',
 
     clust.data[is.na(clust.data)] <- 0
 
+    # remove and empyt features:
+    clust.data <- clust.data[, colSums(clust.data != 0) > 0]
+
     # perform clustering
     if(centerVal==T){datoi <- scale(clust.data[,-1])}
     if(centerVal==F){datoi <- clust.data[,-1]}
     clust.kmeans <- kmeans(datoi, centers=clusterSize, nstart=10, iter.max = 100)
     # create dir
+    if(!dir.exists(file.path(getwd(),cohortid,'kmeans',type))){dir.create(file.path(getwd(),cohortid,'kmeans',type),recursive=T)}
     saveRDS(clust.kmeans, file.path(getwd(),cohortid,'kmeans',type, paste(agegroup,'_',gender,'.rds', sep='')))
-
+    writeLines('Clustering completed... saving results')
     # append cluster results to data
     ##clust.res <- do.call("ffdf", c(physical(cohort.data), physical(as.ffdf(cluster.res$x))))
     ##colnames(clust.res) <- c(colnames(cohort.data), 'Cluster')
@@ -59,6 +63,7 @@ clusterRun <- function(cohortid=1, agegroup=3, gender=8507,type='history',
     # save results to folder
     #save.ffdf(clust.res, file.path(getwd(), outputFolder,cohortid,'clusterResults',paste(agegroup,'_',gender, sep='')))
     # create dir
+    if(!dir.exists(file.path(getwd(),cohortid,'clusterResults',type))){dir.create(file.path(getwd(),cohortid,'clusterResults',type),recursive=T)}
     saveRDS(clust.res, file.path(getwd(),cohortid,'clusterResults',type, paste(agegroup,'_',gender,'.rds', sep='')))
   }
 

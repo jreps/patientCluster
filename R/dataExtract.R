@@ -14,11 +14,12 @@
 #' @examples
 #' dataExtract()
 dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseSchema=NULL,
-                        cohortid=100, agegroup=3, gender=8507,type='history')
+                        cohortid=100, agegroup=3, gender=8507,type='history',
+                        history=365*5)
 {
   if(!is.null(dbconnection) & !is.null(cdmDatabaseSchema) & !is.null(workDatabaseSchema) ){
 
-    loc <- file.path(.libPaths(), 'patientCluster','sql','sql_server')
+    loc <- file.path(.libPaths(), 'patientCluster','sql','sql_server')[1]
     #loc <- file.path(getwd(), 'src')
 
     # age values
@@ -37,7 +38,7 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseS
     # extract the data into ffdf
     writeLines('Extracting data...')
     conn <- DatabaseConnector::connect(dbconnection)
-    sql <- SqlRender::readSql(file.path(loc,'count_extractor.sql'))
+    sql <- SqlRender::readSql(file.path(loc,'summary_extractor.sql'))
     sql <- SqlRender::renderSql(sql,
                      database = cdmDatabaseSchema,
                      outDatabase = workDatabaseSchema,gender=gender, ageupper=age[agegroup,2], agelower=age[agegroup,1],
@@ -54,7 +55,7 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseS
     if(result[1]==0){return()}
 
     # extract definitions of interest into table: rows of definition, concept_id
-    load(file.path(.libPaths(),'data','definitions.RData'))
+    definitions <-read.table(file.path(.libPaths()[1],'patientCluster','feat','definitions.txt'),sep=':')
     definitions <- cbind(strsplit(paste(apply(definitions, 1, function(x)
         paste(rep(x[1],length(strsplit(as.character(x[2]),',')[[1]])), collapse=':')),collapse=':'),':')[[1]]
       ,strsplit(paste(as.character(definitions[,2]), collapse=','),',')[[1]])
@@ -74,7 +75,7 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseS
                          paste("sum(case when covariate = '",unique(definitions[,1]),"' then  1 else 0 end) [",
                                unique(definitions[,1]),"]", sep="", collapse=","),
                          " from history group by person_id")
-
+    writeLines('Extracting history...')
     sql <- SqlRender::readSql(file.path(loc,paste(type,'cohortCluster.sql', sep='')))
     sql <- SqlRender::renderSql(sql,
                      database = cdmDatabaseSchema, outDatabase = workDatabaseSchema,
@@ -83,7 +84,7 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseS
                      history = history,
                      finalSelect=finalSelect)$sql
     sql <- SqlRender::translateSql(sql = sql, sourceDialect = "sql server", targetDialect = sqlType)$sql
-    SqlRender::writeSql(sql, file.path(getwd(), paste("rendered_",type,"_extraction.sql")))
+    SqlRender::writeSql(sql, file.path(getwd(), paste("rendered_",type,"_extraction.sql", sep="")))
     ##clust.data <- as.ffdf(querySql(conn, sql))   - caused crashing issues
     clust.data <- DatabaseConnector::querySql(conn, sql)
     writeLines('Data extracted ...')
