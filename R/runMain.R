@@ -20,38 +20,49 @@
 #' @examples
 #' runMain()
 #'
-runMain <- function(dbconnection, cdmDatabaseSchema, workDatabaseSchema,
-                 outputFolder,
+runMain <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseSchema=NULL,
+                 outputFolder=NULL,
                  cohortid=100, agegroup=3, gender=8507,type='history',
                  method='kmeans', clusterSize=10, centerVal=T,
                  covariatesToInclude=NULL,covariatesToExclude=NULL){
-  require(DatabaseConnector)
-  require(OhdsiRTools)
-  require(SqlRender)
-  require(ggplot2)
-  require(reshape2)
-  require(dplyr)
-  require(plyr)
 
-  # SET WORKING DIRECTORY
-  setwd(file.path(outputFolder))
-  ifelse(!dir.exists(file.path(getwd(), cohortID  )),
-         dir.create(file.path(getwd(), cohortID)), FALSE)
+  if(!is.null(dbconnection) & !is.null(cdmDatabaseSchema) & !is.null(workDatabaseSchema)
+     & !is.null(outputFolder)){
 
-  # extract data - extractdata
-  dataExtract(dbconnection, cdmDatabaseSchema, workDatabaseSchema,
-              cohortid, agegroup, gender,type)
 
-  # perform clustering createclusters
-  clusterRun(cohortid, agegroup, gender,type,
-             method, clusterSize, centerVal,
-             covariatesToInclude,covariatesToExclude)
+    require(DatabaseConnector)
+    require(OhdsiRTools)
+    require(SqlRender)
+    require(ggplot2)
+    require(reshape2)
+    require(dplyr)
+    require(plyr)
 
-  # evaluate clustering - clustereval
-  clusterEval(cohortid, agegroup, gender, type)
 
-  # visualise clusters - clusterVisual
-  clusterVisual(cohortid, agegroup, gender, type)
+    writeLines(paste(cohortid))
+    # SET WORKING DIRECTORY
+    ifelse(!dir.exists(file.path(outputFolder )),
+           dir.create(file.path(outputFolder)), FALSE)
 
-  writeLines('Clustering completed...')
+    setwd(file.path(outputFolder))
+    ifelse(!dir.exists(file.path(getwd(), cohortid  )),
+           dir.create(file.path(getwd(), cohortid)), FALSE)
+
+    # extract data - extractdata
+    dataExtract(dbconnection, cdmDatabaseSchema, workDatabaseSchema,
+                cohortid=cohortid, agegroup=agegroup, gender=gender,type=type)
+
+    # perform clustering createclusters
+    clusterRun(cohortid=cohortid, agegroup=agegroup, gender=gender,type=type,
+               method=method, clusterSize=clusterSize, centerVal=centerVal,
+               covariatesToInclude=covariatesToInclude,covariatesToExclude=covariatesToExclude)
+
+    # evaluate clustering - clustereval
+    clusterEval(cohortid=10, agegroup, gender, type)
+
+    # visualise clusters - clusterVisual
+    clusterVisual(cohortid=cohortid, agegroup, gender, type)
+
+    writeLines('Clustering completed...')
+  }
 }

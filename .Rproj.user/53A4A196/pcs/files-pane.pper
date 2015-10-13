@@ -1,5 +1,5 @@
 {
-    "path" : "~/patientCluster/patientCluster",
+    "path" : "~/patientCluster/patientCluster/data",
     "sortOrder" : [
         {
             "ascending" : true,

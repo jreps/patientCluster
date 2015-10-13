@@ -10,12 +10,16 @@
 #' clusterEval()
 #'
 
-clusterEval <- function(cohortid, agegroup, gender, type)
+clusterEval <- function(cohortid=1, agegroup=3, gender=8507, type='history')
 {
   # check input
   writeLines('Checking input...')
-  test <- .checkdata(cohortid, agegroup, gender,type)
-  if(test){writeLines('Incorrect input...')}
+  test <- !is.null(cohortid) & class(cohortid)%in%c("numeric","character") &
+    !is.null(agegroup) & class(agegroup)%in%c("numeric","character") &
+    !is.null(gender) & gender %in% c(8507,8532) &
+    !is.null(type) & class(type)=="character"
+
+  if(!test){writeLines('Incorrect input...')}
 
   test <- file.exists(file.path(getwd(), cohortid,'clusterResults',type,paste(agegroup,'_',gender,'.rds', sep='')))
   if(!test){writeLines('No cluster data...')}
@@ -23,36 +27,31 @@ clusterEval <- function(cohortid, agegroup, gender, type)
   # load data:
   writeLines('Loading cluster data...')
   ##load.ffdf(file.path(getwd(), outputFolder,cohortid,'clusterResults',paste(agegroup,'_',gender, sep='')))
-  clust.res <- readRDS(file.path(getwd(),cohortid,'clusterResults',type, paste(agegroup,'_',gender,'.rds', sep='')))
+  if(file.exists(file.path(getwd(),cohortid,'clusterResults',type, paste(agegroup,'_',gender,'.rds', sep='')))){
+    clust.res <- readRDS(file.path(getwd(),cohortid,'clusterResults',type, paste(agegroup,'_',gender,'.rds', sep='')))
 
 
-  #use ddlpy to count number of patients/ number of recordings of each covariates per cluster
-  writeLines('Summarising cluster data...')
-  library(dplyr)
-  evalResults.sum <- group_by(clust.res[,-1], cluster) %>% summarise_each(funs(sum))
+    #use ddlpy to count number of patients/ number of recordings of each covariates per cluster
+    writeLines('Summarising cluster data...')
+    library(dplyr)
+    evalResults.sum <- group_by(clust.res[,-1], cluster) %>% summarise_each(funs(sum))
 
-  evalResults.mean <- group_by(clust.res[,-1], cluster) %>% summarise_each(funs(mean))
+    evalResults.mean <- group_by(clust.res[,-1], cluster) %>% summarise_each(funs(mean))
 
-  evalResults.median<- group_by(clust.res[,-1], cluster) %>% summarise_each(funs(median))
+    evalResults.median<- group_by(clust.res[,-1], cluster) %>% summarise_each(funs(median))
 
-  writeLines('Saving results to directory...')
-  if(!dir.exists(file.path(getwd(), cohortid,'clusterSummary'))){dir.create(file.path(getwd(), cohortid,'clusterSummary'))}
-  if(!dir.exists(file.path(getwd(), cohortid,'clusterSummary',type))){dir.create(file.path(getwd(), cohortid,'clusterSummary',type))}
+    writeLines('Saving results to directory...')
+    if(!dir.exists(file.path(getwd(), cohortid,'clusterSummary'))){dir.create(file.path(getwd(), cohortid,'clusterSummary'))}
+    if(!dir.exists(file.path(getwd(), cohortid,'clusterSummary',type))){dir.create(file.path(getwd(), cohortid,'clusterSummary',type))}
 
-  write.csv(evalResults.mean, file.path(getwd(), cohortid,'clusterSummary',type,paste('mean',agegroup,'_',gender,'.csv', sep='')),
-            row.names=FALSE)
-  write.csv(evalResults.median, file.path(getwd(), cohortid,'clusterSummary',type,paste('median',agegroup,'_',gender,'.csv', sep='')),
-            row.names=FALSE)
-  write.csv(evalResults.sum, file.path(getwd(), cohortid,'clusterSummary',type,paste('sum',agegroup,'_',gender,'.csv', sep='')),
-            row.names=FALSE)
+    write.csv(evalResults.mean, file.path(getwd(), cohortid,'clusterSummary',type,paste('mean',agegroup,'_',gender,'.csv', sep='')),
+              row.names=FALSE)
+    write.csv(evalResults.median, file.path(getwd(), cohortid,'clusterSummary',type,paste('median',agegroup,'_',gender,'.csv', sep='')),
+              row.names=FALSE)
+    write.csv(evalResults.sum, file.path(getwd(), cohortid,'clusterSummary',type,paste('sum',agegroup,'_',gender,'.csv', sep='')),
+              row.names=FALSE)
+  }
 
 
 }
 
-.checkdata <- function(cohortid, agegroup, gender,type){
-  test <- !is.null(cohortid) & class(cohortid)%in%c("numeric","character") &
-    !is.null(agegroup) & class(agegroup)%in%c("numeric","character") &
-    !is.null(gender) & gender %in% c(8507,8532) &
-    !is.null(type) & class(type)=="character"
-  return(test)
-}

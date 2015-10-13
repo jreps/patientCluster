@@ -16,57 +16,52 @@
 #' @examples
 #' clusterRun()
 #'
-clusterRun <- function(cohortid, agegroup, gender,type,
+clusterRun <- function(cohortid=1, agegroup=3, gender=8507,type='history',
                            method='kmeans', clusterSize=10, centerVal=T,
-                           covariatesToInclude,covariatesToExclude)
+                           covariatesToInclude=NULL,covariatesToExclude=NULL)
 {
   # chect input
-  test <- .checkInput(cohortid, agegroup, gender,type)
-  if(test){writeLines('Incorrect input...')}
-  # check if cohort data already extracted (if not call extractData())
-  dataExists <- file.exist(file.path(getwd(),cohortid,'extractedData',type, paste(agegroup,'_',gender,'.rds', sep='')))
-
-  # if the data does not exist
-  if(!dataExists){
-    writeLines("No data...Extracting cohort's agegroup/gender history data")
-    extractData(dbconnection, outputfolder, cohortid, agegroup, gender, method,
-                type)
-  }
-
-  # check for saved ffdf and load if exists:
-  ##load.ffdf(file.path(getwd(),cohortid,'extractedData',type, paste(agegroup,'_',gender, sep='')))
-  clust.data <- readRDS(file.path(getwd(),cohortid,'extractedData',type, paste(agegroup,'_',gender,'.rds', sep='')))
-
-  if(!is.null(covariatesToInclude)){clust.data <- clust.data[,covariatesToInclude]}
-  clust.data <- clust.data[,!colnames(clust.data)%in%covariatesToExclude]
-
-  clust.data[is.na(clust.data)] <- 0
-
-  # perform clustering
-  if(centerVal==T){datoi <- scale(clust.data[,-1])}
-  if(centerVal==F){datoi <- clust.data[,-1]}
-  clust.kmeans <- kmeans(datoi, centers=clusterSize, nstart=10, iter.max = 100)
-  # create dir
-  saveRDS(clust.kmeans, file.path(getwd(),cohortid,'kmeans',type, paste(agegroup,'_',gender,'.rds', sep='')))
-
-  # append cluster results to data
-  ##clust.res <- do.call("ffdf", c(physical(cohort.data), physical(as.ffdf(cluster.res$x))))
-  ##colnames(clust.res) <- c(colnames(cohort.data), 'Cluster')
-  clust.res <- data.frame(clust.data,cluster=clust.kmeans$cluster)
-
-  # save results to folder
-  #save.ffdf(clust.res, file.path(getwd(), outputFolder,cohortid,'clusterResults',paste(agegroup,'_',gender, sep='')))
-  # create dir
-  saveRDS(clust.res, file.path(getwd(),cohortid,'clusterResults',type, paste(agegroup,'_',gender,'.rds', sep='')))
-
-
-}
-
-.checkdata <- function(cohortid, agegroup, gender,type){
   test <- !is.null(cohortid) & class(cohortid)%in%c("numeric","character") &
     !is.null(agegroup) & class(agegroup)%in%c("numeric","character") &
     !is.null(gender) & gender %in% c(8507,8532) &
     !is.null(type) & class(type)=="character"
-  return(test)
+  if(!test){writeLines('Incorrect input...')}
+  # check if cohort data already extracted (if not call extractData())
+  dataExists <- file.exists(file.path(getwd(),cohortid,'extractedData',type, paste(agegroup,'_',gender,'.rds', sep='')))
+
+  # if the data does not exist
+  if(!dataExists){
+    writeLines("No data to run clustering...")
+  }
+
+  if(dataExists){
+    # check for saved ffdf and load if exists:
+    ##load.ffdf(file.path(getwd(),cohortid,'extractedData',type, paste(agegroup,'_',gender, sep='')))
+    clust.data <- readRDS(file.path(getwd(),cohortid,'extractedData',type, paste(agegroup,'_',gender,'.rds', sep='')))
+
+    if(!is.null(covariatesToInclude)){clust.data <- clust.data[,covariatesToInclude]}
+    clust.data <- clust.data[,!colnames(clust.data)%in%covariatesToExclude]
+
+    clust.data[is.na(clust.data)] <- 0
+
+    # perform clustering
+    if(centerVal==T){datoi <- scale(clust.data[,-1])}
+    if(centerVal==F){datoi <- clust.data[,-1]}
+    clust.kmeans <- kmeans(datoi, centers=clusterSize, nstart=10, iter.max = 100)
+    # create dir
+    saveRDS(clust.kmeans, file.path(getwd(),cohortid,'kmeans',type, paste(agegroup,'_',gender,'.rds', sep='')))
+
+    # append cluster results to data
+    ##clust.res <- do.call("ffdf", c(physical(cohort.data), physical(as.ffdf(cluster.res$x))))
+    ##colnames(clust.res) <- c(colnames(cohort.data), 'Cluster')
+    clust.res <- data.frame(clust.data,cluster=clust.kmeans$cluster)
+
+    # save results to folder
+    #save.ffdf(clust.res, file.path(getwd(), outputFolder,cohortid,'clusterResults',paste(agegroup,'_',gender, sep='')))
+    # create dir
+    saveRDS(clust.res, file.path(getwd(),cohortid,'clusterResults',type, paste(agegroup,'_',gender,'.rds', sep='')))
+  }
+
 }
+
 
