@@ -48,10 +48,11 @@ runMain <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseSchem
     ifelse(!dir.exists(file.path(getwd(), cohortid  )),
            dir.create(file.path(getwd(), cohortid)), FALSE)
 
+    writeLines(paste(sqlType))
     # extract data - extractdata
     dataExtract(dbconnection, cdmDatabaseSchema, workDatabaseSchema,
                 cohortid=cohortid, agegroup=agegroup, gender=gender,type=type,
-                sqlType)
+                sqlType=sqlType)
 
     # perform clustering createclusters
     clusterRun(cohortid=cohortid, agegroup=agegroup, gender=gender,type=type,
