@@ -24,7 +24,7 @@ runMain <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseSchem
                  outputFolder=NULL,
                  cohortid=100, agegroup=3, gender=8507,type='history',
                  method='kmeans', clusterSize=10, centerVal=T,
-                 covariatesToInclude=NULL,covariatesToExclude=NULL){
+                 covariatesToInclude=NULL,covariatesToExclude=NULL, sqlType){
 
   if(!is.null(dbconnection) & !is.null(cdmDatabaseSchema) & !is.null(workDatabaseSchema)
      & !is.null(outputFolder)){
@@ -50,7 +50,8 @@ runMain <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseSchem
 
     # extract data - extractdata
     dataExtract(dbconnection, cdmDatabaseSchema, workDatabaseSchema,
-                cohortid=cohortid, agegroup=agegroup, gender=gender,type=type)
+                cohortid=cohortid, agegroup=agegroup, gender=gender,type=type,
+                sqlType)
 
     # perform clustering createclusters
     clusterRun(cohortid=cohortid, agegroup=agegroup, gender=gender,type=type,
