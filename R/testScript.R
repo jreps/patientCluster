@@ -23,5 +23,5 @@
                       outputFolder,
                       cohortid=413, agegroup=3, gender=8507,type='history',
                       method='kmeans', clusterSize=10, centerVal=T,
-                      covariatesToInclude=NULL,covariatesToExclude=NULL)
+                      covariatesToInclude=NULL,covariatesToExclude=NULL, sqlType)
 }
