@@ -15,7 +15,7 @@
 #' dataExtract()
 dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, workDatabaseSchema=NULL,
                         cohortid=100, agegroup=3, gender=8507,type='history',
-                        history=365*5)
+                        history=365*5, sqlType)
 {
   if(!is.null(dbconnection) & !is.null(cdmDatabaseSchema) & !is.null(workDatabaseSchema) ){
 
