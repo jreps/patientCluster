@@ -1,57 +1,41 @@
 #' Summarises the differences between the clusters
 #'
-#' @param cohortid  class:numeric - id of cohort in cohort table
-#' @param agegroup  class:numeric - 1=0-20 year olds; 2=20-40 year olds; 3=40-60 year olds; 4=60-80 year olds;5=80-100 year olds
-#' @param gender  class:numeric - gender concept_id (8507- male; 8532-female)
-#' @param type  class:character - features used by clustering (currently only history),
+#' @param clusterResult  ...
 #' @keywords OHDSI, clustering
 #' @export
 #' @examples
 #' clusterEval()
 #'
 
-clusterEval <- function(cohortid=1, agegroup=3, gender=8507, type='history')
+clusterEval <- function(clusterResult)
 {
   # check input
   writeLines('Checking input...')
-  test <- !is.null(cohortid) & class(cohortid)%in%c("numeric","character") &
-    !is.null(agegroup) & class(agegroup)%in%c("numeric","character") &
-    !is.null(gender) & gender %in% c(8507,8532) &
-    !is.null(type) & class(type)=="character"
+  test <- class(clusterResult)== 'clusterResult'
+  if(!test){writeLines('Incorrect input...')
+    return('error')}
 
-  if(!test){writeLines('Incorrect input...')}
+  writeLines('Evaluating cluster data...')
+  clusters <- as.ram(clusterResult$clusters)
+  covariates <- ff::clone(clusterResult$covariates)
 
-  test <- file.exists(file.path(getwd(), cohortid,'clusterResults',type,paste(agegroup,'_',gender,'.rds', sep='')))
-  if(!test){writeLines('No cluster data...')}
+  covariates <- as.ram(covariates)
+  covariates$value <- 1
+  covMat <- reshape2::dcast(covariates[,c('ROW_ID','COVARIATE','value')], ROW_ID~COVARIATE)
 
-  # load data:
-  writeLines('Loading cluster data...')
-  ##load.ffdf(file.path(getwd(), outputFolder,cohortid,'clusterResults',paste(agegroup,'_',gender, sep='')))
-  if(file.exists(file.path(getwd(),cohortid,'clusterResults',type, paste(agegroup,'_',gender,'.rds', sep='')))){
-    clust.res <- readRDS(file.path(getwd(),cohortid,'clusterResults',type, paste(agegroup,'_',gender,'.rds', sep='')))
+  allData <- merge(covMat, clusters, by.x='ROW_ID', by.y='rowId')
 
+  predict <- allData$predict
+  # calculate total counts per cluster predict
+  mean <- aggregate(. ~ predict, allData[,!colnames(allData)%in%c('ROW_ID','predict')], mean)
+  sd <- aggregate(. ~ predict, allData[,!colnames(allData)%in%c('ROW_ID','predict')], stats::sd)
+  frac <- aggregate(. ~ predict, allData[,!colnames(allData)%in%c('ROW_ID','predict')], function(x) sum(x>0)/length(x))
 
-    #use ddlpy to count number of patients/ number of recordings of each covariates per cluster
-    writeLines('Summarising cluster data...')
-    library(dplyr)
-    evalResults.sum <- group_by(clust.res[,-1], cluster) %>% summarise_each(funs(sum))
-
-    evalResults.mean <- group_by(clust.res[,-1], cluster) %>% summarise_each(funs(mean))
-
-    evalResults.median<- group_by(clust.res[,-1], cluster) %>% summarise_each(funs(median))
-
-    writeLines('Saving results to directory...')
-    if(!dir.exists(file.path(getwd(), cohortid,'clusterSummary'))){dir.create(file.path(getwd(), cohortid,'clusterSummary'))}
-    if(!dir.exists(file.path(getwd(), cohortid,'clusterSummary',type))){dir.create(file.path(getwd(), cohortid,'clusterSummary',type))}
-
-    write.csv(evalResults.mean, file.path(getwd(), cohortid,'clusterSummary',type,paste('mean',agegroup,'_',gender,'.csv', sep='')),
-              row.names=FALSE)
-    write.csv(evalResults.median, file.path(getwd(), cohortid,'clusterSummary',type,paste('median',agegroup,'_',gender,'.csv', sep='')),
-              row.names=FALSE)
-    write.csv(evalResults.sum, file.path(getwd(), cohortid,'clusterSummary',type,paste('sum',agegroup,'_',gender,'.csv', sep='')),
-              row.names=FALSE)
-  }
-
+  result <- list(clusterMeans=mean,
+                 clusterSds =sd,
+                 clusterFrac = frac)
+  class(result) <- 'clusterEval'
+  return(result)
 
 }
 
