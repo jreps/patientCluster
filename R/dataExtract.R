@@ -1,5 +1,9 @@
 #' This extracts the history features for each person in the cohort with the specific age/gender
-#'
+#' @description This function connects to the CDM and constructs the data used to do the clustering
+#' - this is either condition_concept_ids that are recorded during the defined time period relative
+#' to the cohort start date for each person in the cohort or covariate concept_sets that are
+#' specified by using the 'default' grouping or inputing a dataframe with columns: definition and
+#' concept_id specifiying the concept_ids that make up each covariate definition, see examples below.
 #' @param dbconnection class:connectionDetails - the database connection details requires Library(DatabaseConnector)
 #' @param cdmDatabaseSchema  class:character - database schema containing cdm tables
 #' @param cohortDatabaseSchema  class:character - database schema containing cohort
@@ -7,20 +11,46 @@
 #' @param cohortid  class:numeric - id of cohort in cohort table
 #' @param agegroup  class:numeric - 1=0-20 year olds; 2=20-40 year olds; 3=40-60 year olds; 4=60-80 year olds;5=80-100 year olds
 #' @param gender  class:numeric - gender concept_id (8507- male; 8532-female)
-#' @param type  class:character - features used by clustering (currently only history),
-#' @param historyStart ....
-#' @param historyEnd ....
-#' @param sqlType ...
+#' @param type  class:character - features used by clustering (condition i.e. all condition_concept_ids or group i.e. concept sets),
+#' @param groupDef class:dataframe - a dataframe containing covariate concept_sets - must have the columns definition and concept_id
+#' @param historyStart class:numeric days prior to index to start searching person records for features
+#' @param historyEnd class:numeric days prior to index to stop searching person records for features
 #' @param loc   class:character - directory where the results of the clustering are saved
-#' @return clusterData class:clusterData - a list containing: strata- an ffdf containing the age/gender/row_id for each person in the cohort,
-#'                                                            covariates - an ffdf containing the covariates for each person in the cohort
-#'                                                            covariateRef - an ffdf containing details about the covariates
-#'                                                            metadata - a list containing details about the data extraction
+#' @return clusterData class:clusterData - a list containing:
+#' \item{strata}{an ffdf containing the age/gender/row_id for each person in the cohort}
+#' \item{covariates}{an ffdf containing the covariates for each person in the cohort}
+#' \item{covariateRef}{ an ffdf containing details about the covariates}
+#' \item{metadata}{a list containing details about the data extraction}
 #' @seealso DatabaseConnector, OhdsiRTools, SqlRender, ggplot2, reshape2, dplyr, plyr
 #' @keywords OHDSI, clustering
 #' @export
 #' @examples
-#' dataExtract(gender=8507)
+#'
+#' # to extract the males ages between 30 and 45 in cdm_test.dbo.cohort with id 21
+#' # and find whether they have the default concept definitions 1 to 60 days prior
+#' # to cohort start:
+#' dbconnection <- DatabaseConnector::createConnectionDetails(dbms = dbms,server = server,
+#' user = user,password = pw,port = port,schema = cdmDatabaseSchema)
+#'
+#' data <- dataExtract(dbconnection, cdmDatabaseSchema='cdm_test.dbo',
+#'                     cohortDatabaseSchema='cdm_test.dbo', cohort_id=21,
+#'                     agegroup = c(30,45), gender=8507,
+#'                     type='group', groupDef='default',
+#'                     historyStart=1,historyEnd=60)
+#'
+#' # to extract the cluster data using user specified concept sets:
+#' # where definition 1 contains concept_ids: 101,32011,1 and 63434
+#' #       definition 2 contains concept_ids: 12,13
+#' #       definition 3 contains concept_ids: 450453,21435324,232,3424,4534435 and 3453
+#' groupDef <- data.frame(defintion=c(1,1,1,1,2,2,3,3,3,3,3,3),
+#'                        concept_id =c(c(101,32011,1,63434), c(12,13),
+#'                                      c(450453,21435324,232,3424,4534435,3453))
+#' data <- dataExtract(dbconnection, cdmDatabaseSchema='cdm_test.dbo',
+#'                     cohortDatabaseSchema='cdm_test.dbo', cohort_id=21,
+#'                     agegroup = NULL, gender=NULL,
+#'                     type='group', groupDef=groupDef,
+#'                     historyStart=1,historyEnd=180)
+#'
 dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabaseSchema=NULL,
                         workDatabaseSchema=NULL,
                         cohortid=100, agegroup=NULL, gender=NULL,
@@ -63,6 +93,11 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabas
     }
 
     # extracting strata and covariates
+    ageLower <- 0
+    ageUpper <- 200
+    if(!is.null(agegroup)){
+      ageLower <- agegroup[1]
+      ageUpper <- agegroup[2]}
     writeLines('Extracting data...')
     sql <- SqlRender::readSql(file.path(sql.loc,paste(type,'cohortCluster.sql', sep='')))
     sql <- SqlRender::renderSql(sql,
@@ -72,7 +107,9 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabas
                                 cohort_ids = cohortid,
                                 cdm_version = '5',
                                 cohort_definition_id = 'cohort_definition_id',
-                                start = historyStart, end=historyEnd)$sql
+                                start = historyStart, end=historyEnd,
+                                use_age= !is.null(agegroup), agelower=ageLower, ageupper=ageUpper,
+                                use_gender= !is.null(gender), gender=gender)$sql
     sql <- SqlRender::translateSql(sql = sql, sourceDialect = "sql server", targetDialect = sqlType)$sql
     SqlRender::writeSql(sql, file.path(loc, paste("rendered_",type,"_extraction.sql", sep="")))
     DatabaseConnector::executeSql(conn, sql)
@@ -139,7 +176,7 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabas
 #' # todo
 #'
 #' @export
-saveClusterData <- function(cData, file){
+saveClusterData <- function(cData, file,overwrite=F){
   if (missing(cData))
     stop("Must specify cData")
   if (missing(file))
@@ -150,7 +187,7 @@ saveClusterData <- function(cData, file){
   strata <- cData$strata
   covariates <- cData$covariates
   covariateRef <- cData$covariateRef
-  ffbase::save.ffdf(strata, strataRef, covariates, covariateRef, dir = file)
+  ffbase::save.ffdf(strata, covariates, covariateRef, dir = file, overwrite=overwrite)
 
   metaData <- cData$metaData
   save(metaData, file = file.path(file, "metaData.Rdata"))

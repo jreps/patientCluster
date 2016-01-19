@@ -4,7 +4,7 @@
 \alias{saveClusterData}
 \title{Save the clustering data to folder}
 \usage{
-saveClusterData(cData, file)
+saveClusterData(cData, file, overwrite = F)
 }
 \arguments{
 \item{cData}{An object of type \code{clusterData} as generated using \code{dataExtract}.}

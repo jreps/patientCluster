@@ -12,10 +12,14 @@ clusterVisual(clusterResult, saveLoc = getwd())
 \item{clusterresult}{output from applying clusterPeople()}
 }
 \description{
-Plots the different cluster visulisations
+Plots barcharts of each cluster's center and saves to the directory specified by the user
+}
+\details{
+This function only has two inputs, the clusterResults obtained by applying clusterPeople
+and the location to save the plots.
 }
 \examples{
-clusterVisual()
+clusterVisual(clusterResult, saveLoc='C:/Documents')
 
 }
 \keyword{OHDSI,}

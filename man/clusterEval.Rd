@@ -2,18 +2,49 @@
 % Please edit documentation in R/clusterEval.R
 \name{clusterEval}
 \alias{clusterEval}
-\title{Summarises the differences between the clusters}
+\title{Summarise the differences between the clusters}
 \usage{
 clusterEval(clusterResult)
 }
 \arguments{
-\item{clusterResult}{...}
+\item{clusterResult}{A list of class 'clusterResult' return by running clusterPeople()}
+}
+\value{
+A list containing:
+\item{clusterMeans}{ A data frame containing the mean of each feature per cluster}
+\item{clusterSds}{ A data frame containing the standard deviation of each feature value per cluster}
+\item{clusterFrac}{ A data frame containing the fraction of each cluster with non-zero values for the feature}
 }
 \description{
-Summarises the differences between the clusters
+This function simply calculates summaries of each cluster and returns these
+as a list.
+}
+\details{
+This function only has one input, the clusterResults obtained by applying clusterPeople
 }
 \examples{
-clusterEval()
+# set database connection
+dbconnection <- DatabaseConnector::createConnectionDetails(dbms = dbms,server = server,
+user = user,password = pw,port = port,schema = cdmDatabaseSchema)
+
+# then extract the data - in thie example using default groups
+clusterData <- dataExtract(dbconnection, cdmDatabaseSchema,
+cohortDatabaseSchema=cdmDatabaseSchema,
+workDatabaseSchema='scratch.dbo',
+cohortid=2000006292, agegroup=NULL, gender=NULL,
+type='group', groupDef = 'default',
+historyStart=1,historyEnd=365,  loc=getwd())
+
+# initialise the h2o cluster
+h2o.init(nthreads=-1, max_mem_size = '50g')
+
+# cluster the males aged between 30 and 50 into 15 clusters
+clusterPeople <- clusterRun(clusterData, ageSpan=c(30,50), gender=8507,
+                         method='kmeans', clusterSize=15,
+                         normalise=F, binary=F,fraction=T)
+
+# get the summary details of each cluster:
+clusterSum <- clusterEval(clusterResult)
 
 }
 \keyword{OHDSI,}

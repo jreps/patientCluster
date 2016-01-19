@@ -1,11 +1,13 @@
 #' Plots the different cluster visulisations
-#'
+#' @description Plots barcharts of each cluster's center and saves to the directory specified by the user
 #' @param clusterresult  output from applying clusterPeople()
 #' @param saveLoc   class:character - directory where the results of the clustering are saved
 #' @keywords OHDSI, clustering
+#' @details This function only has two inputs, the clusterResults obtained by applying clusterPeople
+#' and the location to save the plots.
 #' @export
 #' @examples
-#' clusterVisual()
+#' clusterVisual(clusterResult, saveLoc='C:/Documents')
 #'
 clusterVisual <-function(clusterResult, saveLoc=getwd()){
 
