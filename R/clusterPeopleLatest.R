@@ -210,7 +210,7 @@ clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
       features <- ff::as.ffdf(t(res.glrm@model$archetypes))
       # now do kmeans on reduced dim data:
 
-      new_data <- as.h2o(transData)
+      newData <- ff::as.ffdf(as.h2o(transData))
       res.kmeans <- h2o::h2o.kmeans(new_data, k=clusterSize, max_iterations = 1000,
                                     standardize = normalise, init = "PlusPlus", seed=1)
       cluster <- as.data.frame(predict(res.kmeans, new_data))
@@ -226,7 +226,7 @@ clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
                    clusters = clusters,
                    centers= centers,
                    metadata = metaData,
-                   newData= ff::as.ffdf(newData),
+                   newData= newData,
                    features = features)
     class(result) <- 'clusterResult'
   }
