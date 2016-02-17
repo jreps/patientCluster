@@ -30,7 +30,7 @@ Screenshots
 
 Technology
 ==========
-patientCluster is an R package, with some functions implemented using h2o ().
+patientCluster is an R package, with some functions implemented using h2o (http://h2o-release.s3.amazonaws.com/h2o/rel-lambert/5/docs-website/Ruser/Rinstall.html).
 
 System Requirements
 ===================
@@ -50,7 +50,7 @@ Getting Started
 2. The DatabaseConnector, h2o and SqlRender packages require Java. Java can be downloaded from
 <a href="http://www.java.com" target="_blank">http://www.java.com</a>.
 3. Install h2o as describe here: http://h2o-release.s3.amazonaws.com/h2o/rel-lambert/5/docs-website/Ruser/Rinstall.html
-4. In R, use the following commands to download and install PatientLevelPrediction:
+4. In R, use the following commands to download and install patientCluster:
 
   ```r
   install.packages("devtools")
