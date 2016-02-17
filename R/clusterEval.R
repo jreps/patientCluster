@@ -46,26 +46,95 @@ clusterEval <- function(clusterResult)
     return('error')}
 
   writeLines('Evaluating cluster data...')
-  clusters <- as.ram(clusterResult$clusters)
+  clusters <- ff::as.ram(clusterResult$clusters)
   covariates <- ff::clone(clusterResult$covariates)
 
-  covariates <- as.ram(covariates)
+  covariates <- ff::as.ram(covariates)
   covariates$value <- 1
-  covMat <- reshape2::dcast(covariates[,c('ROW_ID','COVARIATE','value')], ROW_ID~COVARIATE)
+  covMat <- reshape2::dcast(covariates[,c('ROW_ID','COVARIATE','value')], ROW_ID~COVARIATE,fill=0,fun.aggregate=length)
 
   allData <- merge(covMat, clusters, by.x='ROW_ID', by.y='rowId')
 
   predict <- allData$predict
   # calculate total counts per cluster predict
-  mean <- aggregate(. ~ predict, allData[,!colnames(allData)%in%c('ROW_ID','predict')], mean)
-  sd <- aggregate(. ~ predict, allData[,!colnames(allData)%in%c('ROW_ID','predict')], stats::sd)
-  frac <- aggregate(. ~ predict, allData[,!colnames(allData)%in%c('ROW_ID','predict')], function(x) sum(x>0)/length(x))
+  means <- aggregate(. ~ predict, allData[,!colnames(allData)%in%c('ROW_ID','predict')], FUN=mean)
+  sds <- aggregate(. ~ predict, allData[,!colnames(allData)%in%c('ROW_ID','predict')], stats::sd)
+  fracs <- aggregate(. ~ predict, allData[,!colnames(allData)%in%c('ROW_ID','predict')], function(x) sum(x>0)/length(x))
 
-  result <- list(clusterMeans=mean,
-                 clusterSds =sd,
-                 clusterFrac = frac)
+  covmat.stand <- t(t(allData[,!colnames(allData)%in%c('ROW_ID','predict')])-apply(allData[,!colnames(allData)%in%c('ROW_ID','predict')],2, mean))
+  rel <- t(t(covmat.stand)/apply(covmat.stand,2, function(x) max(x)))
+  rel[covmat.stand<0] <- t(t(covmat.stand)/apply(covmat.stand,2, function(x) abs(max(-x))))[covmat.stand<0]
+  rel <- as.data.frame(rel)
+  relative <- aggregate(. ~ predict, rel, mean)
+
+
+
+  strataLabs <- merge(ff::as.ram(clusterResult$strata), clusters, by.x='ROW_ID', by.y='rowId')
+  strataLabs$value <- 1
+  ageGen <- aggregate(strataLabs[,c('value')], by=list( predict=strataLabs$predict,
+                                                        age=strataLabs$AGE,gender=strataLabs$GENDER), sum)
+  #ageGen <- reshape2::dcast(ageGen, predict+gender~age,fill=0)
+  genders <- data.frame(gender_id=c(8507,8532), genderName=c('Male','Female'))
+  ageGen <- merge(ageGen, genders, by.x='gender', by.y='gender_id')
+
+  # each cluster
+  param <- min(allData$predict):max(allData$predict)
+  proces <- function(data, clust){
+    colnames(data)[colnames(data)=='x'] <- 'value'
+    return(list(male=data[data$predict==clust&data$genderName=='Male',c('age','value')],
+                female=data[data$predict==clust&data$genderName=='Female',c('age','value')])
+    )
+  }
+  ageGen<- lapply(param, function(x) proces(ageGen,x))
+
+
+  # calculate min/ range per topic, calculate variability of topic across clusters
+
+  result <- list(clusterMeans=means,
+                 clusterSds =sds,
+                 clusterFrac = fracs,
+                 clusterRelative=relative,
+                 ageGender=ageGen)
   class(result) <- 'clusterEval'
   return(result)
 
+}
+
+
+# eval topics:
+topicEval <- function(clust.res, threshold=NULL){
+  def <- merge(clust.res$definitions, clust.res$conceptDescriptions, by.x='rowId',by.y='CONCEPT_ID')
+  topics <- merge(clust.res$topics, clust.res$ingredientsUsed, by.x='covariate_id',by.y='CONCEPT_ID')
+  topicRanks <- def[,c(-1,-2)]
+
+  ranker <- function(i){
+    val <- c()
+    if(sum(topicRanks[,i]>0)!=0){
+      val <- data.frame(concept=topicRanks$CONCEPT_NAME,value=topicRanks[,i])
+      if(!is.null(threshold))
+        val <- val[val$value>=threshold,]
+      val <- val[order(-val$value),]
+    }
+    return(val)
+  }
+
+  topiclist <- lapply( 1:(ncol(topicRanks)-1), ranker)
+
+  topicsMax <- data.frame(concept=topicRanks$CONCEPT_NAME,
+                          cluster= apply(topicRanks, 1, function(x) which.max(x[-ncol(topicRanks)])))
+  topicsMax <- lapply(min(topicsMax$cluster):max(topicsMax$cluster),
+                      function(x) topicsMax[topicsMax$cluster==x,] )
+
+  topicsKmeans <- data.frame(concept=def$CONCEPT_NAME,
+                             cluster= def$predict )
+  topicsKmeans <- lapply(min(topicsKmeans$cluster):max(topicsKmeans$cluster),
+                         function(x) topicsKmeans[topicsKmeans$cluster==x,] )
+
+  result <- list(
+    topicsOrdered = topiclist,
+    topicsMax = topicsMax ,
+    topicsKmeans =topicsKmeans
+  )
+  return(result)
 }
 

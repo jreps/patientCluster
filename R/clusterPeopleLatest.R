@@ -50,6 +50,7 @@
 #' @param covariatesToInclude  class:character vector - features to include: default NULL
 #' @param covariatesToExclude  class:character  vector - features to exclude;Default NULL
 #' @param covariatesGroups  class:covariatecluster   result of clusterCovariate();Default NULL
+#' @param extraparameters - a list of parameters that can be used when adding a non default cluster method
 #' @return A list is returned of class 'clusterResult' containing:
 #'
 #' \item{strata}{An ffdf containing the row_id (unique reference of the person), their age and gender}
@@ -91,11 +92,11 @@
 clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
                        method='kmeans', clusterSize=10, glrmFeat=NULL,
                        normalise=T, binary=F, fraction=F,
-                       covariatesToInclude=NULL,covariatesToExclude=NULL,covariatesGroups=NULL
-                       )
-{
+                       covariatesToInclude=NULL,covariatesToExclude=NULL,covariatesGroups=NULL,
+                       extraparameters=NULL
+                       ){
   # chect input
-  test <- !is.null(method) & method %in%c('kmeans','glrm') &
+  test <- !is.null(method) & method %in%c('kmeans','glrm', 'concensus') &
     class(clusterData) == 'clusterData' &
     (is.null(ageSpan) | ifelse(!is.null(ageSpan), class(ageSpan), 'none')=="numeric" &
        ifelse(!is.null(ageSpan),length(ageSpan), 0)==2) &
@@ -120,7 +121,7 @@ clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
       ind <- ffbase::ffmatch(covariates$ROW_ID, ppl.include)
       covariates <- covariates[ffbase::ffwhich(ind, !is.na(ind)),]
 
-      writeLines(paste0(length(unique(covariates$ROW_ID)),' people remaining'))
+      writeLines(paste0(length(unique(strata$ROW_ID)),' people remaining'))
     }
 
     if(!is.null(gender)){
@@ -134,7 +135,7 @@ clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
       ind <- ffbase::ffmatch(covariates$ROW_ID, ppl.include)
       covariates <- covariates[ffbase::ffwhich(ind, !is.na(ind)),]
 
-      writeLines(paste0(length(unique(covariates$ROW_ID)),' people remaining'))
+      writeLines(paste0(length(unique(strata$ROW_ID)),' people remaining'))
 
     }
 
@@ -151,11 +152,11 @@ clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
 
     # set groupings if included:
     if(!is.null(covariatesGroups)){
-      covariates <- ff::as.ffdf(merge(covariateGroups, as.ram(covariates), by.x='conceptId', by.y='CONCEPT_ID'))
+      covariates <- ff::as.ffdf(merge(covariateGroups, ff::as.ram(covariates), by.x='conceptId', by.y='CONCEPT_ID'))
     }
 
     # tranform into matrix and h2o object
-    covariates <- as.ram(covariates)
+    covariates <- ff::as.ram(covariates)
     covariates$value <- 1
     if(binary==T){
     covMat <- reshape2::dcast(covariates[,c('ROW_ID','COVARIATE','value')], ROW_ID~COVARIATE, fill=0,
@@ -173,61 +174,25 @@ clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
                                          ncol=ncol(covMat.data), nrow=nrow(covMat.data))
     }
 
-    # cluster using kmeans or glrm
-    if(method=='kmeans'){
-      writeLines('Performing kmeans')
-      start <- Sys.time()
-      training_frame <- h2o::as.h2o(covMat.data)
-      #clusters <- kmeans(covMat.data, center= clusterSize, iter.max=100, nstart=10)
-      res.kmeans <- h2o::h2o.kmeans(training_frame, k=clusterSize, max_iterations = 1000,
-                                    standardize = normalise, init = "PlusPlus", seed=1)
-      total <- Sys.time() - start
-      writeLines(paste0('Kmeans took:', format(total, digits=4)))
-      cluster <- as.data.frame(predict(res.kmeans, training_frame))
-      clusters <- data.frame(cluster = cluster,
-                                rowId=as.character(covMat[,1]))
-      centers <- as.data.frame(res.kmeans@model$centers)
-      newData=NULL
-      features = NULL
-    }
+    # convert to h20
+    training_frame <- h2o::as.h2o(covMat.data)
 
-    if(method=='glrm'){
-      writeLines('Performing generalised low rank model')
-      start <- Sys.time()
-      training_frame <- h2o::as.h2o(covMat.data)
-      res.glrm <- h2o::h2o.glrm(training_frame, k=glrmFeat, loading_name='basis',
-                                ignore_const_cols=T, transform = "NONE", regularization_y = "NonNegative",
-                                regularization_x =  "L1", gamma_x = 0.5, gamma_y = 0.5,
-                                max_iterations = 1000, init_step_size = 1, min_step_size = 0.0000001,
-                                init = "SVD",#"PlusPlus",
-                                impute_original = FALSE,  seed=1)
-      total <- Sys.time() - start
-      writeLines(paste0('Generalised low rank model took:', format(total, digits=4)))
-      transData = as.data.frame(h2o.getFrame(res.glrm@model$representation_name))
-      newData <- data.frame(transData =  transData,
-                             rowId=as.character(covMat[,1]))
+    param <- list(clusterSize=clusterSize, glrmFeat=glrmFeat,
+                  normalise=normalise,training_frame=training_frame )
+    if(!is.null(extraparameters))
+      param <- c(param,extraparameters)
+    param$rowIds <- as.character(covMat[,1])
+    param$colIds <- as.character(colnames(covMat.data))
+    clust.result <- do.call(paste0('pc.',method), param)
 
-      features <- ff::as.ffdf(t(res.glrm@model$archetypes))
-      # now do kmeans on reduced dim data:
 
-      newData <- ff::as.ffdf(as.h2o(transData))
-      res.kmeans <- h2o::h2o.kmeans(new_data, k=clusterSize, max_iterations = 1000,
-                                    standardize = normalise, init = "PlusPlus", seed=1)
-      cluster <- as.data.frame(predict(res.kmeans, new_data))
-      clusters <- data.frame(cluster = cluster,
-                             rowId=as.character(covMat[,1]))
-      centers <- as.data.frame(res.kmeans@model$centers)
-
-    }
     metaData <- c(list(size=clusterSize, method=method), clusterData$metaData)
     result <- list(strata=strata,
-                   covariates=as.ffdf(covariates),
+                   covariates=ff::as.ffdf(covariates),
                    covariateRef=covariateRef,
-                   clusters = clusters,
-                   centers= centers,
-                   metadata = metaData,
-                   newData= newData,
-                   features = features)
+                   metadata = metaData)
+    result <- c(result, clust.result)
+
     class(result) <- 'clusterResult'
   }
 

@@ -4,6 +4,7 @@
 #' @param cdmDatabaseSchema - cdm schema used to extract data from
 #' @param method  class:character - method used to do clustering (currently only supports kmeans)
 #' @param clusterSize class:numeric - number of clusters returned,
+#' @param topicSize class:numeric - number of topics in glrm
 #' @param scale  class:boolean - whether to use ingredience percentage scale for clustering
 #' @param covariatesToInclude  class:character vector - features to include: default NULL
 #' @param indications  class:boolean   extract drug indicator features;Default TRUE
@@ -16,11 +17,13 @@
 #' @export
 #' @examples
 #' clusterConcepts()
+
+# age: age
 clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
-                       method='kmeans', clusterSize=10, scale=T,
+                       method='kmeans', clusterSize=10, topicSize=NULL, scale=T,
                        covariatesToInclude=NULL,
                        indications=T, dayStart=1,dayEnd=30,
-                       use_min_obs=TRUE, min_obs=100)
+                       use_min_obs=TRUE, min_obs=100, extraparameters)
 {
   use_before = indications
   cdmDatabase <- strsplit(cdmDatabaseSchema,'\\.')[[1]][1]
@@ -97,43 +100,63 @@ clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
 
 
   # perform the clustering
-  if(method=='kmeans'){
-    writeLines('Performing kmeans')
-    start <- Sys.time()
-    training_frame <- h2o::as.h2o(covMat.data)
-    #clusters <- kmeans(covMat.data, center= clusterSize, iter.max=100, nstart=10)
-    res.kmeans <- h2o::h2o.kmeans(training_frame, k=clusterSize, max_iterations = 1000,
-               standardize = FALSE, init = "PlusPlus", seed=1)
-    total <- Sys.time() - start
-    writeLines(paste0('Kmeans took:', format(total, digits=4)))
+
+  # set training frame:
+  if(is.null(topicSize))
+    topicSize <- 100
+
+  training_frame <- h2o::as.h2o(covMat.data)
+  param <- list(training_frame = training_frame,
+                regularization_x = 'NonNegative',
+                normalise = FALSE,
+                rowIds = covMat.names,
+                colIds = colnames(covMat.data),
+                clusterSize = clusterSize,
+                glrmFeat=topicSize)
+  if(!is.null(extraparameters))
+    param <- c(param,extraparameters)
+   clust.result <- do.call(paste0('pc.',method), param)
+
+
+  #if(method=='kmeans'){
+  # writeLines('Performing kmeans')
+  #  start <- Sys.time()
+  #  training_frame <- h2o::as.h2o(covMat.data)
+  #  #clusters <- kmeans(covMat.data, center= clusterSize, iter.max=100, nstart=10)
+  #  res.kmeans <- h2o::h2o.kmeans(training_frame, k=clusterSize, max_iterations = 1000,
+  #             standardize = FALSE, init = "PlusPlus", seed=1)
+  #  total <- Sys.time() - start
+  #  writeLines(paste0('Kmeans took:', format(total, digits=4)))
 #res.kmeans@model$run_time
-    cluster <- as.data.frame(predict(res.kmeans, training_frame))
-    colnames(cluster)[colnames(cluster)=='predict'] <- 'covariate'
-    definitions <- data.frame(covariate = cluster,
-                              concept_id=covMat.names)
-    topics <- as.data.frame(res.kmeans@model$centers)
-  }
+  #  cluster <- as.data.frame(predict(res.kmeans, training_frame))
+  #  colnames(cluster)[colnames(cluster)=='predict'] <- 'covariate'
+  #  definitions <- data.frame(covariate = cluster,
+  #                            concept_id=covMat.names) # clusters
+  #  topics <- as.data.frame(res.kmeans@model$centers) #centers
+  #}
 
 
-  if(method=='glrm'){
-    training_frame <- h2o::as.h2o(covMat.data)
-    res.glrm <- h2o::h2o.glrm(training_frame, k=clusterSize, loading_name='basis',
-                              ignore_const_cols=T, transform = "NONE", regularization_y = "NonNegative",
-                              regularization_x =  "NonNegative", gamma_x = 0.5, gamma_y = 0.5,
-                              max_iterations = 1000, init_step_size = 1, min_step_size = 0.0000001,
-                              init = "SVD",#"PlusPlus",
-                              impute_original = FALSE,  seed=1)
-    plot(res.glrm)
-    y <- res.glrm@model$archetypes
-    x <- h2o.getFrame(res.glrm@model$representation_name)
+  #if(method=='glrm'){
+  #  if(is.null(topicSize))
+  #    topicSize <- 100
+  #  training_frame <- h2o::as.h2o(covMat.data)
+  #  res.glrm <- h2o::h2o.glrm(training_frame, k=topicSize, loading_name='basis',
+  #                            ignore_const_cols=T, transform = "NONE", regularization_y = "NonNegative",
+  #                            regularization_x =  "NonNegative", gamma_x = 0.5, gamma_y = 0.5,
+  #                            max_iterations = 1000, init_step_size = 1, min_step_size = 0.0000001,
+  #                            init = "SVD",#"PlusPlus",
+  #                            impute_original = FALSE,  seed=1)
+  #  plot(res.glrm)
+  #  y <- res.glrm@model$archetypes
+  #  x <- h2o.getFrame(res.glrm@model$representation_name) # transData
 
-    res.kmeans <- h2o::h2o.kmeans(x, k=clusterSize)
-    cluster <- as.data.frame(predict(res.kmeans, x))
-    colnames(cluster)[colnames(cluster)=='predict'] <- 'covariate'
-    definitions <- data.frame(covariate = cluster,arch=as.data.frame(x),
-                              concept_id=covMat.names)
-    topics <-  data.frame(t(y), concept_id=colnames(covMat.data))
-  }
+  #  res.kmeans <- h2o::h2o.kmeans(x, k=clusterSize)
+  #  cluster <- as.data.frame(predict(res.kmeans, x))
+  #  colnames(cluster)[colnames(cluster)=='predict'] <- 'covariate'
+  #  definitions <- data.frame(covariate = cluster,arch=as.data.frame(x),
+  #                            concept_id=covMat.names)
+  #  topics <-  data.frame(t(y), concept_id=colnames(covMat.data)) # features
+  #}
 
 
   metaData <- list(method=method,
@@ -149,12 +172,15 @@ clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
                    sql=sql
   )
 
+  defs <- merge(clust.result$clusters, clust.result$newData, by='rowId')
+  if(is.null(clust.result$features))
+    clust.result$features <-  clust.result$centers
   result <- list(data= covMat.data,
                  datanames=covMat.names,
                  ingredientsUsed = ingUsed,
                  conceptDescriptions = conceptUsed,
-                 definitions= definitions,
-                 topics =topics,
+                 definitions= defs,
+                 topics =clust.result$features,
                  metaData = metaData)
 
 

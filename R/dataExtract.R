@@ -74,8 +74,9 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabas
       !is.null(type) & class(type)=="character"
     if(!test){writeLines('Input error...')}
 
-    if(type=='group' & (groupDef!='default' & class(groupDef)!='data.frame'))
-      return('No group settings')
+    if(type=='group')
+      if(groupDef!='default' & class(groupDef)!='data.frame')
+        return('No group settings')
     if(type=='group'){
     # extract definitions of interest into table: rows of definition, concept_id
       definitions <- groupDef

@@ -67,7 +67,7 @@ IF OBJECT_ID('tempdb..#covariateClust', 'U') IS NOT NULL
 	DROP TABLE #covariateClust;
 
 select condition_concept_id, c.ingredient ingredience_concept_id,
-sum(case when datediff(day, a.condition_era_start_date, c.drug_date ) between
+sum(case when datediff(day, c.drug_date , a.condition_era_start_date ) between
 {@use_before}?{-@end and -@start}:{@start and @end}
 then 1 else 0 end ) value
 into #covariateClust
@@ -86,6 +86,6 @@ inner join
 select condition_concept_id, person_id, condition_era_start_date from #covariateCount)a
 on a.person_id=b.person_id
 {@use_include}?{inner join #include on #include.concept_id=a.condition_concept_id}
-where datediff(day, a.condition_era_start_date, c.drug_date ) between {@use_before}?{-@end and -@start}:{@start and @end}
+where datediff(day, c.drug_date , a.condition_era_start_date ) between {@use_before}?{-@end and -@start}:{@start and @end}
 and a.condition_era_start_date between d.observation_period_start_date and d.observation_period_end_date
 group by condition_concept_id, c.ingredient;
