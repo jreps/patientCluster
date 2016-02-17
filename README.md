@@ -22,7 +22,7 @@ Screenshots
 <table border = "">
 <tr valign="top">
 <td width = 100%>
-  <img src="https://github.com/OHDSI/PatientLevelPrediction/blob/master/extras/Calibration.png" alt="Javascript Cluster Screenshot" title="Javascript Cluster Screenshot" />
+  <img src="https://github.com/jreps/patientCluster/blob/master/extras/patclustExample.png" alt="Javascript Cluster Screenshot" title="Javascript Cluster Screenshot" />
 </td>
 </tr><tr>
 <td>Example Javascript Plot</td>
