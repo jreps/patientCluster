@@ -67,7 +67,7 @@ Getting Started
 Getting Involved
 ================
 * Vignette: [Cluster examples](https://github.com/jreps/patientCluster/blob/master/extras/Examples%20patientCluster.pdf)
-* Package manual: [patientCluster.pdf](https://...) 
+* Package manual: [patientCluster.pdf](https://github.com/jreps/patientCluster/blob/master/man/patientCluster.pdf) 
 * Developer questions/comments/feedback: <a href="http://forums.ohdsi.org/c/developers">OHDSI Forum</a>
 * We use the <a href="../../issues">GitHub issue tracker</a> for all bugs/issues/enhancements
  
