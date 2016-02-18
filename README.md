@@ -39,8 +39,6 @@ Requires R (version ? or higher). Installation on Windows requires [RTools](http
 Dependencies
 ============
  * h2o
- * reshape2
- * ff
  * DatabaseConnector
  * SqlRender
 
