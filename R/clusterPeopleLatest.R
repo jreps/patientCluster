@@ -39,7 +39,8 @@
 #'               covariatesGroups=NULL, loc=loc)
 #'
 #' @param cohortid  class:numeric - id of cohort in cohort table
-#' @param ageSpan  class:numeric - 1=0-20 year olds; 2=20-40 year olds; 3=40-60 year olds; 4=60-80 year olds;5=80-100 year olds
+#' @param minAge  class:numeric default(NULL)- the minimum age a person in the cohort must be to be included in the data
+#' @param maxAge  class:numeric default(NULL)- the maximum age a person in the cohort must be to be included in the data
 #' @param gender  class:numeric - gender concept_id (8507- male; 8532-female)
 #' @param method  class:character - method used to do clustering (currently only supports kmeans)
 #' @param clusterSize class:numeric - number of clusters returned,
@@ -85,24 +86,38 @@
 #' h2o.init(nthreads=-1, max_mem_size = '50g')
 #'
 #' # cluster the males aged between 30 and 50 into 15 clusters
-#' clusterPeople <- clusterRun(clusterData, ageSpan=c(30,50), gender=8507,
+#' clusterPeople <- clusterRun(clusterData, minAge=30, maxAge=50, gender=8507,
 #'                          method='kmeans', clusterSize=15,
 #'                          normalise=F, binary=F,fraction=T)
 #'
-clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
+clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
                        method='kmeans', clusterSize=10, glrmFeat=NULL,
                        normalise=T, binary=F, fraction=F,
                        covariatesToInclude=NULL,covariatesToExclude=NULL,covariatesGroups=NULL,
-                       extraparameters=NULL
+                       extraparameters=NULL, updateProgress=NULL,
+                       include.nofeat=F,...
                        ){
   # chect input
+  if (is.function(updateProgress)) {
+    updateProgress(detail = "\n Initiating H2o...")
+  }
+  maxRam <- '4g'
+  systemInfo <- Sys.info()
+  if(systemInfo['sysname']=="Windows")
+    maxRam <- paste0(memory.size()*0.8,'g')
+  if(systemInfo['sysname']!="Windows") # need to test this on mac
+    maxRam <- paste0(mem.limits(nsize=NA, vsize=NA)*0.8,'g')
+  writeLines(paste0('Initiating H2o with max Ram of: ',maxRam))
+  h2o::h2o.init(nthreads=-1, max_mem_size = maxRam)
   test <- !is.null(method) & method %in%c('kmeans','glrm', 'concensus') &
     class(clusterData) == 'clusterData' &
-    (is.null(ageSpan) | ifelse(!is.null(ageSpan), class(ageSpan), 'none')=="numeric" &
-       ifelse(!is.null(ageSpan),length(ageSpan), 0)==2) &
+    (is.null(minAge) | ifelse(!is.null(minAge), class(minAge), 'none')=="numeric" ) &
+    (is.null(maxAge) | ifelse(!is.null(maxAge), class(maxAge), 'none')=="numeric" ) &
     (is.null(gender) | ifelse(!is.null(gender),gender, 1) %in% c(8507,8532))
 
-  if(!test){writeLines('Incorrect input...')}
+  if(!test){
+    warning('Wrong input values...')
+    return()}
 
   if(test){
 
@@ -110,8 +125,10 @@ clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
     covariates <- ff::clone(clusterData$covariates)
     covariateRef <- ff::clone(clusterData$covariateRef)
 
-    if(!is.null(ageSpan)){
+    if(!is.null(minAge) | !is.null(maxAge)){
       writeLines('Filtering by age span')
+      ageSpan <- c(ifelse(is.null(minAge), 0, minAge),
+                   ifelse(is.null(maxAge), 200, maxAge))
       t <- strata$AGE >= ageSpan[1] & strata$AGE <= ageSpan[2]
       ppl.include <- strata$ROW_ID[ffbase::ffwhich(t,t==T)]
 
@@ -155,6 +172,17 @@ clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
       covariates <- ff::as.ffdf(merge(covariateGroups, ff::as.ram(covariates), by.x='conceptId', by.y='CONCEPT_ID'))
     }
 
+    # check data size:
+    if(length(unique(ff::as.ram(covariates$COVARIATE)))>1000)
+      warning('You are clustering on a large number of covariates - methods such as kmeans are likely to have issues due to sparse issue when calculating distance in high dimensional spaces')
+    if(length(unique(ff::as.ram(covariates$COVARIATE)))*length(unique(ff::as.ram(covariates$ROW_ID))) > 10000*10000){
+      warning('Matrix is too large - reduce number of covariates for this cluster or select a smaller number of people using age/gender constraints')
+      return()
+    }
+
+    if (is.function(updateProgress)) {
+      updateProgress(detail = "\n Transforming sparse data to matrix...")
+    }
     # tranform into matrix and h2o object
     covariates <- ff::as.ram(covariates)
     covariates$value <- 1
@@ -166,13 +194,30 @@ clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
       covMat <- reshape2::dcast(covariates[,c('ROW_ID','COVARIATE','value')], ROW_ID~COVARIATE, fill=0,
                                 fun.aggregate = sum)
     }
+    # remove row_id
     covMat.data <- covMat[,-1]
-    writeLines(paste0(nrow(covMat.data),' rows in full matrix'))
+    rowId.names <- covMat[,1]
 
     if(fraction==T){
       covMat.data <- covMat.data/matrix(rep(apply(covMat.data,1,sum), ncol=ncol(covMat.data)), byrow=F,
-                                         ncol=ncol(covMat.data), nrow=nrow(covMat.data))
+                                        ncol=ncol(covMat.data), nrow=nrow(covMat.data))
     }
+
+    if(include.nofeat){
+      # add people who no covariates into matrix:
+      ppl <- unique(ff::as.ram(strata$ROW_ID))
+      ppl <- ppl[!ppl%in%unique(covariates$ROW_ID)]
+
+      zeroPpl <- as.data.frame(matrix(rep(0, ncol(covMat.data)*length(ppl)),
+                                      ncol=ncol(covMat.data)))
+      colnames(zeroPpl) <- colnames(covMat.data)
+      # add people with no features:
+      covMat.data <- rbind(covMat.data,zeroPpl)
+
+      rowId.names <- c(rowId.names,ppl)
+    }
+
+    writeLines(paste0(nrow(covMat.data),' rows in full matrix'))
 
     # convert to h20
     training_frame <- h2o::as.h2o(covMat.data)
@@ -181,16 +226,47 @@ clusterPeople <- function(clusterData, ageSpan=c(0,100), gender=NULL,
                   normalise=normalise,training_frame=training_frame )
     if(!is.null(extraparameters))
       param <- c(param,extraparameters)
-    param$rowIds <- as.character(covMat[,1])
+    param$rowIds <- as.character(rowId.names)
     param$colIds <- as.character(colnames(covMat.data))
+    if (is.function(updateProgress)) {
+      updateProgress(detail = "\n Clustering...")
+    }
     clust.result <- do.call(paste0('pc.',method), param)
+
+    # foramting the data into nice dataframes:
+    clusterDetails <- NULL
+    clusterPerson <- NULL
+    if(method=='kmeans'){
+      clusterDetails <- reshape2::melt(clust.result$centers, 'centroid')
+      colnames(clusterDetails) <- c('clusterId','topCaption', 'Score')
+
+      sizes <- aggregate(clust.result$clusters, b=list(clust.result$clusters$predict), FUN=length)[,1:2]
+      colnames(sizes) <- c('clusterId','personCount')
+
+      topicId <- data.frame(topCaption=colnames(clust.result$centers)[-1],
+                            topicId=1:length(colnames(clust.result$centers)[-1]))
+      topicId$topicId <-  topicId$topicId + ifelse(clusterData$metaData$type=='group', 200000, 100000)
+
+      clusterDetails <-merge(merge(clusterDetails , sizes, by='clusterId', all.x=T),
+                             topicId,by='topCaption', all.x=T)
+      clusterDetails <-clusterDetails[, c('clusterId', 'topicId',
+                                          'topCaption', 'Score','personCount')]
+      clusterDetails <-clusterDetails[order(clusterDetails$clusterId),]
+
+
+      clusterPerson <- clust.result$clusters
+      colnames(clusterPerson) <- c('clusterId','rowId')
+      clusterPerson$probability <- NA
+    }
 
 
     metaData <- c(list(size=clusterSize, method=method), clusterData$metaData)
     result <- list(strata=strata,
                    covariates=ff::as.ffdf(covariates),
                    covariateRef=covariateRef,
-                   metadata = metaData)
+                   metadata = metaData,
+                   clusterPerson=clusterPerson,
+                   clusterDetails=clusterDetails)
     result <- c(result, clust.result)
 
     class(result) <- 'clusterResult'

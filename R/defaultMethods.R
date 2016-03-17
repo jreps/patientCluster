@@ -6,11 +6,21 @@ pc.kmeans <- function(clusterSize,normalise,training_frame,rowIds,...){
                                 standardize = normalise, init = "PlusPlus", seed=1)
   total <- Sys.time() - start
   writeLines(paste0('Kmeans took:', format(total, digits=4)))
-  cluster <- as.data.frame(predict(res.kmeans, training_frame))
+  cluster <- as.data.frame(h2o::h2o.predict(res.kmeans, training_frame))
   clusters <- data.frame(cluster = cluster,
                          rowId=rowIds)
+
   centers <- as.data.frame(res.kmeans@model$centers)
-  newData=NULL
+  clustMat <- function(x){
+    vec.x <- rep(0, clusterSize)
+    vec.x[x] <- 1
+    return(vec.x)
+  }
+
+  newData <- t(sapply(cluster[,1], clustMat))
+  colnames(newData) <- paste0('cluster', 1:clusterSize)
+  newData <- data.frame(rowId=rowIds, as.data.frame(newData))
+
   features = NULL
 
   result <- list(clusters = clusters,
@@ -31,7 +41,7 @@ pc.glrm <- function(glrmFeat,clusterSize,normalise,training_frame,rowIds,colIds,
                             impute_original = FALSE,  seed=1)
   total <- Sys.time() - start
   writeLines(paste0('Generalised low rank model took:', format(total, digits=4)))
-  transData = h2o.getFrame(res.glrm@model$representation_name)
+  transData = h2o::h2o.getFrame(res.glrm@model$representation_name)
 
   writeLines(paste0(class(res.glrm@model$archetypes)))
   writeLines(paste0(dim(res.glrm@model$archetypes)))
@@ -41,13 +51,14 @@ pc.glrm <- function(glrmFeat,clusterSize,normalise,training_frame,rowIds,colIds,
   ##newData <- ff::as.ffdf(as.h2o(transData))
   res.kmeans <- h2o::h2o.kmeans(transData, k=clusterSize, max_iterations = 1000,
                                 standardize = normalise, init = "PlusPlus", seed=1)
-  cluster <- as.data.frame(predict(res.kmeans, transData))
+  cluster <- as.data.frame(h2o::h2o.predict(res.kmeans, transData))
   clusters <- data.frame(predict = cluster,
                          rowId=rowIds) #definitions
   centers <- as.data.frame(res.kmeans@model$centers)
 
   newData <- data.frame(transData =  as.data.frame(transData),
                         rowId=rowIds)
+  #writeLines(paste(colnames(newData), collapse='-'))
 
   result <- list(clusters = clusters,
                  centers= centers,
@@ -60,14 +71,14 @@ pc.glrm <- function(glrmFeat,clusterSize,normalise,training_frame,rowIds,colIds,
 
 # method of consensus kmeans using hclust - algo heirarchal
 #...
-pc.concensus<- function(clusterSize,normalise,training_frame,rowIds,colIds, csample, rsample, repeats ,...){
+pc.concensus<- function(clusterSize,normalise,training_frame,rowIds,colIds, csample=0.5, rsample=0.8, repeats=20 ,...){
   writeLines('Performing concensusus clustering')
   start <- Sys.time()
 
   eachiter <- function(...){
   # sample from the data:
-  colSamp <- sample(ncol(training_frame), ncol(training_frame)*csample)
-  rowSamp <- sample(nrow(training_frame), nrow(training_frame)*rsample)
+  colSamp <- sort(sample(ncol(training_frame), ncol(training_frame)*csample))
+  rowSamp <- sort(sample(nrow(training_frame), nrow(training_frame)*rsample))
 
   #clusters <- kmeans(covMat.data, center= clusterSize, iter.max=100, nstart=10)
   res.kmeans <- h2o::h2o.kmeans(training_frame[rowSamp,colSamp], k=clusterSize, max_iterations = 1000,
@@ -80,10 +91,15 @@ pc.concensus<- function(clusterSize,normalise,training_frame,rowIds,colIds, csam
   writeLines('Finished multiple clustering...')
 
   colnames(cluster) <- paste0('predict',1:ncol(cluster))
+  #writeLines(paste(rowIds[1:10], collapse=' - '))
   cluster$rowId <- rowIds
-  melted <- reshape2::melt(cluster, by='rowId')
-  colnames(melted)[colnames(melted)=='value'] <- 'clust'
-  melted$value <- 1
+  #writeLines(paste(cluster$rowId[1:10], collapse=' - '))
+  writeLines(paste0(colnames(cluster)))
+  melted <- reshape2::melt(cluster, id.vars='rowId', value.name='clust')
+  #colnames(melted)[colnames(melted)=='value'] <- 'clust'
+  #melted$value <- 1
+  writeLines(paste0(colnames(melted)))
+  writeLines(paste0(dim(melted)))
   casted <- reshape2::dcast(melted, rowId~variable+clust, fill=0)
 
   data.concensus <- h2o::as.h2o(casted)
@@ -102,7 +118,7 @@ pc.concensus<- function(clusterSize,normalise,training_frame,rowIds,colIds, csam
 
 
   # TO FINISH
-  transData = as.data.frame(h2o.getFrame(mod@model$representation_name))
+  transData = as.data.frame(h2o::h2o.getFrame(mod@model$representation_name))
   cluster = apply(transData, 1, which.max)
 
   # calculate centers:

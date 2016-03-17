@@ -9,13 +9,15 @@
 #' @param cohortDatabaseSchema  class:character - database schema containing cohort
 #' @param workDatabaseSchema  class:character -database you writing tables to
 #' @param cohortid  class:numeric - id of cohort in cohort table
-#' @param agegroup  class:numeric - 1=0-20 year olds; 2=20-40 year olds; 3=40-60 year olds; 4=60-80 year olds;5=80-100 year olds
+#' @param minAge  class:numeric default(NULL)- the minimum age a person in the cohort must be to be included in the data
+#' @param maxAge  class:numeric default(NULL)- the maximum age a person in the cohort must be to be included in the data
 #' @param gender  class:numeric - gender concept_id (8507- male; 8532-female)
 #' @param type  class:character - features used by clustering (condition i.e. all condition_concept_ids or group i.e. concept sets),
 #' @param groupDef class:dataframe - a dataframe containing covariate concept_sets - must have the columns definition and concept_id
 #' @param historyStart class:numeric days prior to index to start searching person records for features
 #' @param historyEnd class:numeric days prior to index to stop searching person records for features
-#' @param loc   class:character - directory where the results of the clustering are saved
+#' @param ffloc   class:character - specifies the directory where the ff files are stored
+#' @param debug   class:character - default(NULL) otherise specifies the directory where the main SQL for extraction is written to for debugging
 #' @return clusterData class:clusterData - a list containing:
 #' \item{strata}{an ffdf containing the age/gender/row_id for each person in the cohort}
 #' \item{covariates}{an ffdf containing the covariates for each person in the cohort}
@@ -34,29 +36,38 @@
 #'
 #' data <- dataExtract(dbconnection, cdmDatabaseSchema='cdm_test.dbo',
 #'                     cohortDatabaseSchema='cdm_test.dbo', cohort_id=21,
-#'                     agegroup = c(30,45), gender=8507,
+#'                     minAge = 30, maxAge=45, gender=8507,
 #'                     type='group', groupDef='default',
-#'                     historyStart=1,historyEnd=60)
+#'                     historyStart=1,historyEnd=60,
+#'                     ffloc='C:fftemps')
 #'
 #' # to extract the cluster data using user specified concept sets:
 #' # where definition 1 contains concept_ids: 101,32011,1 and 63434
 #' #       definition 2 contains concept_ids: 12,13
 #' #       definition 3 contains concept_ids: 450453,21435324,232,3424,4534435 and 3453
-#' groupDef <- data.frame(defintion=c(1,1,1,1,2,2,3,3,3,3,3,3),
+#' groupDef <- data.frame(covariate=c(1,1,1,1,2,2,3,3,3,3,3,3),
 #'                        concept_id =c(c(101,32011,1,63434), c(12,13),
 #'                                      c(450453,21435324,232,3424,4534435,3453))
 #' data <- dataExtract(dbconnection, cdmDatabaseSchema='cdm_test.dbo',
 #'                     cohortDatabaseSchema='cdm_test.dbo', cohort_id=21,
-#'                     agegroup = NULL, gender=NULL,
 #'                     type='group', groupDef=groupDef,
-#'                     historyStart=1,historyEnd=180)
+#'                     historyStart=1,historyEnd=180,
+#'                     ffloc='C:fftemps')
 #'
 dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabaseSchema=NULL,
                         workDatabaseSchema=NULL,
-                        cohortid=100, agegroup=NULL, gender=NULL,
-                        type='condition', groupDef = 'default',
-                        historyStart=1,historyEnd=180, loc=NULL)
+                        cohortid=100, ageMin=NULL, ageMax=NULL, gender=NULL,
+                        type='group', groupDef = 'default',
+                        historyStart=1,historyEnd=180,
+                        ffloc=NULL, debug=NULL, ...)
 {
+
+  if(is.null(ffloc)){
+    warning('Please enter a directory with read/write access to store the ff files')
+    return()
+  }
+  options(fftempdir = ffloc)
+
   if(!is.null(dbconnection) & !is.null(cdmDatabaseSchema) & !is.null(cohortDatabaseSchema) ){
 
     cdmDatabase <- strsplit(cdmDatabaseSchema,'\\.')[[1]][1]
@@ -96,9 +107,11 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabas
     # extracting strata and covariates
     ageLower <- 0
     ageUpper <- 200
-    if(!is.null(agegroup)){
-      ageLower <- agegroup[1]
-      ageUpper <- agegroup[2]}
+    agegroup <- !is.null(ageMin) | !is.null(ageMax)
+    if(!is.null(ageMin))
+      ageLower <- ageMin
+    if(!is.null(ageMax))
+      ageUpper <- ageMax
     writeLines('Extracting data...')
     sql <- SqlRender::readSql(file.path(sql.loc,paste(type,'cohortCluster.sql', sep='')))
     sql <- SqlRender::renderSql(sql,
@@ -112,7 +125,8 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabas
                                 use_age= !is.null(agegroup), agelower=ageLower, ageupper=ageUpper,
                                 use_gender= !is.null(gender), gender=gender)$sql
     sql <- SqlRender::translateSql(sql = sql, sourceDialect = "sql server", targetDialect = sqlType)$sql
-    SqlRender::writeSql(sql, file.path(loc, paste("rendered_",type,"_extraction.sql", sep="")))
+    if(!is.null(debug))
+      SqlRender::writeSql(sql, file.path(debug, paste("rendered_",type,"_extraction.sql", sep="")))
     DatabaseConnector::executeSql(conn, sql)
 
     # output results and progress to user
@@ -123,10 +137,14 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabas
     writeLines(ifelse(as.double(nrow(strata))>1, 'Enough people... Extracting covariate data', 'not enough people... Terminating') )
     if(nrow(strata)==0){return()}
 
+    # check the data isnt too big or return warning:
+    if(type=='condition')
+      if(nrow(strata)>100000)
+        warning("Extracted dara for clusting has more than 100000 people please reduce the number of features by rerunning data extract and using type='group' or use covariatesToInclude in clusterPeople to select a smaller number of covariates ")
+
     sql <- 'select * from #covariates'
     sql <- SqlRender::translateSql(sql = sql, sourceDialect = "sql server", targetDialect = sqlType)$sql
     covariates <- DatabaseConnector::querySql.ffdf(conn, sql)
-    ##clust.data <- DatabaseConnector::querySql(conn, sql)
 
     sql <- paste0('select b.concept_id, b.concept_name, b.',
                   ifelse(cdm_version==5,'concept_class_id','concept_class'),
@@ -136,14 +154,7 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabas
 
     writeLines('Data extracted ...')
 
-    # save the data to output folder
-    if(!dir.exists(file.path(loc,cohortid,'extractedData',type))){
-      dir.create(file.path(loc,cohortid,'extractedData',type), recursive = T)}
-
-
-    ##save.ffdf(clust.data, dir=file.path(loc,cohortid,'extractedData',type, paste(agegroup,'_',gender, sep='')))
-    ##saveRDS(clust.data, file.path(loc,cohortid,'extractedData',type, paste(agegroup,'_',gender,'.rds', sep='')))
-    metaData <- list(cohortId = cohortid,
+   metaData <- list(cohortId = cohortid,
                      database = cdmDatabaseSchema,
                      agegroup=agegroup,
                      type=type,
@@ -154,7 +165,6 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabas
                    covariateRef = covariateRef,
                    metaData = metaData)
     class(result) <- 'clusterData'
-    #saveClusterData(result, file=file.path(loc,cohortid,'extractedData',type, paste(agegroup,'_',gender, sep='')))
     RJDBC::dbDisconnect(conn)
     return(result)
   }

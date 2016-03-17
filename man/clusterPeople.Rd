@@ -13,7 +13,9 @@ clusterPeople(clusterData, ageSpan=c(0,100), gender=8507, method='kmeans',
               covariatesGroups=NULL, loc=loc)
 }
 \arguments{
-\item{ageSpan}{class:numeric - 1=0-20 year olds; 2=20-40 year olds; 3=40-60 year olds; 4=60-80 year olds;5=80-100 year olds}
+\item{minAge}{class:numeric default(NULL)- the minimum age a person in the cohort must be to be included in the data}
+
+\item{maxAge}{class:numeric default(NULL)- the maximum age a person in the cohort must be to be included in the data}
 
 \item{gender}{class:numeric - gender concept_id (8507- male; 8532-female)}
 
@@ -34,6 +36,8 @@ clusterPeople(clusterData, ageSpan=c(0,100), gender=8507, method='kmeans',
 \item{covariatesToExclude}{class:character  vector - features to exclude;Default NULL}
 
 \item{covariatesGroups}{class:covariatecluster   result of clusterCovariate();Default NULL}
+
+\item{extraparameters}{- a list of parameters that can be used when adding a non default cluster method}
 
 \item{cohortid}{class:numeric - id of cohort in cohort table}
 }
@@ -102,7 +106,7 @@ historyStart=1,historyEnd=365,  loc=getwd())
 h2o.init(nthreads=-1, max_mem_size = '50g')
 
 # cluster the males aged between 30 and 50 into 15 clusters
-clusterPeople <- clusterRun(clusterData, ageSpan=c(30,50), gender=8507,
+clusterPeople <- clusterRun(clusterData, minAge=30, maxAge=50, gender=8507,
                          method='kmeans', clusterSize=15,
                          normalise=F, binary=F,fraction=T)
 

@@ -100,12 +100,28 @@ clusterEval <- function(clusterResult)
 
 }
 
+#' topicEval
+#' @description This function simply calculates summaries of each topic and returns these
+#' as a list.
+#' @param clust.res  A list return by running clusterConcepts()
+#' @keywords OHDSI, clustering
+#' @details This function only has one input, the clusterResults obtained by applying clusterConcepts
+#' @export
+#' @return A list containing:
+#' \item{topicsOrdered}{ A data frame containing the mean of each feature per cluster}
+#' \item{topicsMax}{ A data frame containing the standard deviation of each feature value per cluster}
+#' \item{topicsKmeans}{ A data frame containing the fraction of each cluster with non-zero values for the feature}
 
-# eval topics:
 topicEval <- function(clust.res, threshold=NULL){
+
   def <- merge(clust.res$definitions, clust.res$conceptDescriptions, by.x='rowId',by.y='CONCEPT_ID')
-  topics <- merge(clust.res$topics, clust.res$ingredientsUsed, by.x='covariate_id',by.y='CONCEPT_ID')
-  topicRanks <- def[,c(-1,-2)]
+  writeLines(paste(def$predict[1:10], sep=' ', collapse=' '))
+
+  #if(!is.null(clust.res$topics))
+  #  topics <- merge(clust.res$topics, clust.res$ingredientsUsed, by.x='covariate_id',by.y='CONCEPT_ID')
+  topicRanks <- def[,c(-1,-2)] # remove rowId, CONCEPT_ID
+
+  writeLines(paste0(colnames(topicRanks)))
 
   ranker <- function(i){
     val <- c()
@@ -126,10 +142,11 @@ topicEval <- function(clust.res, threshold=NULL){
                       function(x) topicsMax[topicsMax$cluster==x,] )
 
   topicsKmeans <- data.frame(concept=def$CONCEPT_NAME,
+                             concept_id=def$rowId,
                              cluster= def$predict )
   topicsKmeans <- lapply(min(topicsKmeans$cluster):max(topicsKmeans$cluster),
                          function(x) topicsKmeans[topicsKmeans$cluster==x,] )
-
+ writeLines(paste0(length(topicsKmeans)))
   result <- list(
     topicsOrdered = topiclist,
     topicsMax = topicsMax ,

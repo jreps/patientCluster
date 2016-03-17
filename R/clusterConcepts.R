@@ -19,12 +19,18 @@
 #' clusterConcepts()
 
 # age: age
-clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
+clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,workDatabaseSchema=NULL,
                        method='kmeans', clusterSize=10, topicSize=NULL, scale=T,
                        covariatesToInclude=NULL,
                        indications=T, dayStart=1,dayEnd=30,
-                       use_min_obs=TRUE, min_obs=100, extraparameters)
+                       use_min_obs=TRUE, min_obs=100, extraparameters=NULL,
+                       updateProgress=NULL,...)
 {
+  # shiny app output
+  if (is.function(updateProgress)) {
+    updateProgress(detail = "\n Initiating H2o...")
+  }
+  h2o::h2o.init(nthreads=-1)
   use_before = indications
   cdmDatabase <- strsplit(cdmDatabaseSchema,'\\.')[[1]][1]
   sql.loc <- file.path(system.file(package='patientCluster'), 'sql','sql_server')[1]
@@ -42,6 +48,9 @@ clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
     RJDBC::dbDisconnect(conn2)
   }
 
+  if (is.function(updateProgress)) {
+    updateProgress(detail = "\n Extracting data...")
+  }
   conn <- DatabaseConnector::connect(dbconnection)
   writeLines('Extracting covariate cluster data...')
   start <- Sys.time()
@@ -55,13 +64,15 @@ clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
                               use_min_obs=use_min_obs  ,
                               min_obs=min_obs,
                               use_include=use_include)$sql
-  sql <- SqlRender::translateSql(sql = sql, sourceDialect = "sql server", targetDialect = sqlType)$sql
+  sql <- SqlRender::translateSql(sql = sql, sourceDialect = "sql server", targetDialect = dbconnection$dbms)$sql
   DatabaseConnector::executeSql(conn, sql)
 
-
+  if (is.function(updateProgress)) {
+    updateProgress(detail = "\n Extracting additional info...")
+  }
   # select ingredient values:
   sql.out <- "select condition_concept_id, ingredience_concept_id, value from #covariateClust"
-  sql.out <- SqlRender::translateSql(sql = sql.out, sourceDialect = "sql server", targetDialect = sqlType)$sql
+  sql.out <- SqlRender::translateSql(sql = sql.out, sourceDialect = "sql server", targetDialect = dbconnection$dbms)$sql
   covData <- DatabaseConnector::querySql.ffdf(conn, sql.out)
   total <- Sys.time() - start
   writeLines(paste0('Extracting data took:', format(total, digits=4)))
@@ -70,19 +81,22 @@ clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
   sql.out <- "select concept_id, concept_name from concept a inner join
   (select distinct condition_concept_id from #covariateClust) b
   on b.condition_concept_id=a.concept_id"
-  sql.out <- SqlRender::translateSql(sql = sql.out, sourceDialect = "sql server", targetDialect = sqlType)$sql
+  sql.out <- SqlRender::translateSql(sql = sql.out, sourceDialect = "sql server", targetDialect = dbconnection$dbms)$sql
   conceptUsed <- DatabaseConnector::querySql.ffdf(conn, sql.out)
 
   sql.out <- "select concept_id, concept_name from concept a inner join
   (select distinct ingredience_concept_id from #covariateClust) b
   on b.ingredience_concept_id=a.concept_id"
-  sql.out <- SqlRender::translateSql(sql = sql.out, sourceDialect = "sql server", targetDialect = sqlType)$sql
+  sql.out <- SqlRender::translateSql(sql = sql.out, sourceDialect = "sql server", targetDialect = dbconnection$dbms)$sql
   ingUsed <- DatabaseConnector::querySql.ffdf(conn, sql.out)
 
+  if (is.function(updateProgress)) {
+    updateProgress(detail = "\n Creating clustering matrix...")
+  }
   # reshape data into matrix:
   writeLines('Casting sparse data into matrix form')
   start <- Sys.time()
-  covMat <- reshape2::dcast(as.ram(covData), CONDITION_CONCEPT_ID ~ INGREDIENCE_CONCEPT_ID, fill=0)
+  covMat <- reshape2::dcast(ff::as.ram(covData), CONDITION_CONCEPT_ID ~ INGREDIENCE_CONCEPT_ID, fill=0)
   total <- Sys.time() - start
   writeLines(paste0('Casting took:', format(total, digits=4)))
 
@@ -100,7 +114,9 @@ clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
 
 
   # perform the clustering
-
+  if (is.function(updateProgress)) {
+    updateProgress(detail = "\n Clustering data...")
+  }
   # set training frame:
   if(is.null(topicSize))
     topicSize <- 100
@@ -117,48 +133,9 @@ clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
     param <- c(param,extraparameters)
    clust.result <- do.call(paste0('pc.',method), param)
 
-
-  #if(method=='kmeans'){
-  # writeLines('Performing kmeans')
-  #  start <- Sys.time()
-  #  training_frame <- h2o::as.h2o(covMat.data)
-  #  #clusters <- kmeans(covMat.data, center= clusterSize, iter.max=100, nstart=10)
-  #  res.kmeans <- h2o::h2o.kmeans(training_frame, k=clusterSize, max_iterations = 1000,
-  #             standardize = FALSE, init = "PlusPlus", seed=1)
-  #  total <- Sys.time() - start
-  #  writeLines(paste0('Kmeans took:', format(total, digits=4)))
-#res.kmeans@model$run_time
-  #  cluster <- as.data.frame(predict(res.kmeans, training_frame))
-  #  colnames(cluster)[colnames(cluster)=='predict'] <- 'covariate'
-  #  definitions <- data.frame(covariate = cluster,
-  #                            concept_id=covMat.names) # clusters
-  #  topics <- as.data.frame(res.kmeans@model$centers) #centers
-  #}
-
-
-  #if(method=='glrm'){
-  #  if(is.null(topicSize))
-  #    topicSize <- 100
-  #  training_frame <- h2o::as.h2o(covMat.data)
-  #  res.glrm <- h2o::h2o.glrm(training_frame, k=topicSize, loading_name='basis',
-  #                            ignore_const_cols=T, transform = "NONE", regularization_y = "NonNegative",
-  #                            regularization_x =  "NonNegative", gamma_x = 0.5, gamma_y = 0.5,
-  #                            max_iterations = 1000, init_step_size = 1, min_step_size = 0.0000001,
-  #                            init = "SVD",#"PlusPlus",
-  #                            impute_original = FALSE,  seed=1)
-  #  plot(res.glrm)
-  #  y <- res.glrm@model$archetypes
-  #  x <- h2o.getFrame(res.glrm@model$representation_name) # transData
-
-  #  res.kmeans <- h2o::h2o.kmeans(x, k=clusterSize)
-  #  cluster <- as.data.frame(predict(res.kmeans, x))
-  #  colnames(cluster)[colnames(cluster)=='predict'] <- 'covariate'
-  #  definitions <- data.frame(covariate = cluster,arch=as.data.frame(x),
-  #                            concept_id=covMat.names)
-  #  topics <-  data.frame(t(y), concept_id=colnames(covMat.data)) # features
-  #}
-
-
+   if (is.function(updateProgress)) {
+     updateProgress(detail = "\n Formatting...")
+   }
   metaData <- list(method=method,
                    size=clusterSize,
                    database = cdmDatabaseSchema,
@@ -171,8 +148,9 @@ clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
                    call= match.call(),
                    sql=sql
   )
-
-  defs <- merge(clust.result$clusters, clust.result$newData, by='rowId')
+  defs <- NULL
+  if(!is.null(clust.result$newData))
+    defs <- merge(clust.result$clusters, clust.result$newData, by='rowId')
   if(is.null(clust.result$features))
     clust.result$features <-  clust.result$centers
   result <- list(data= covMat.data,

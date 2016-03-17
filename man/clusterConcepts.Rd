@@ -4,10 +4,11 @@
 \alias{clusterConcepts}
 \title{clusterConcepts}
 \usage{
-clusterConcepts(dbconnection, cdmDatabaseSchema = NULL, method = "kmeans",
-  clusterSize = 10, scale = T, covariatesToInclude = NULL,
+clusterConcepts(dbconnection, cdmDatabaseSchema = NULL,
+  workDatabaseSchema = NULL, method = "kmeans", clusterSize = 10,
+  topicSize = NULL, scale = T, covariatesToInclude = NULL,
   indications = T, dayStart = 1, dayEnd = 30, use_min_obs = TRUE,
-  min_obs = 100)
+  min_obs = 100, extraparameters = NULL, updateProgress = NULL, ...)
 }
 \arguments{
 \item{dbconnection}{using DatabaseConnector - connect to cdm database}
@@ -17,6 +18,8 @@ clusterConcepts(dbconnection, cdmDatabaseSchema = NULL, method = "kmeans",
 \item{method}{class:character - method used to do clustering (currently only supports kmeans)}
 
 \item{clusterSize}{class:numeric - number of clusters returned,}
+
+\item{topicSize}{class:numeric - number of topics in glrm}
 
 \item{scale}{class:boolean - whether to use ingredience percentage scale for clustering}
 

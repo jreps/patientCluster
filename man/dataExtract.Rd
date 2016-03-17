@@ -6,8 +6,9 @@
 \usage{
 dataExtract(dbconnection = NULL, cdmDatabaseSchema = NULL,
   cohortDatabaseSchema = NULL, workDatabaseSchema = NULL, cohortid = 100,
-  agegroup = NULL, gender = NULL, type = "condition",
-  groupDef = "default", historyStart = 1, historyEnd = 180, loc = NULL)
+  ageMin = NULL, ageMax = NULL, gender = NULL, type = "group",
+  groupDef = "default", historyStart = 1, historyEnd = 180,
+  ffloc = NULL, debug = NULL, ...)
 }
 \arguments{
 \item{dbconnection}{class:connectionDetails - the database connection details requires Library(DatabaseConnector)}
@@ -20,8 +21,6 @@ dataExtract(dbconnection = NULL, cdmDatabaseSchema = NULL,
 
 \item{cohortid}{class:numeric - id of cohort in cohort table}
 
-\item{agegroup}{class:numeric - 1=0-20 year olds; 2=20-40 year olds; 3=40-60 year olds; 4=60-80 year olds;5=80-100 year olds}
-
 \item{gender}{class:numeric - gender concept_id (8507- male; 8532-female)}
 
 \item{type}{class:character - features used by clustering (condition i.e. all condition_concept_ids or group i.e. concept sets),}
@@ -32,7 +31,13 @@ dataExtract(dbconnection = NULL, cdmDatabaseSchema = NULL,
 
 \item{historyEnd}{class:numeric days prior to index to stop searching person records for features}
 
-\item{loc}{class:character - directory where the results of the clustering are saved}
+\item{ffloc}{class:character - specifies the directory where the ff files are stored}
+
+\item{debug}{class:character - default(NULL) otherise specifies the directory where the main SQL for extraction is written to for debugging}
+
+\item{minAge}{class:numeric default(NULL)- the minimum age a person in the cohort must be to be included in the data}
+
+\item{maxAge}{class:numeric default(NULL)- the maximum age a person in the cohort must be to be included in the data}
 }
 \value{
 clusterData class:clusterData - a list containing:
@@ -58,22 +63,23 @@ user = user,password = pw,port = port,schema = cdmDatabaseSchema)
 
 data <- dataExtract(dbconnection, cdmDatabaseSchema='cdm_test.dbo',
                     cohortDatabaseSchema='cdm_test.dbo', cohort_id=21,
-                    agegroup = c(30,45), gender=8507,
+                    minAge = 30, maxAge=45, gender=8507,
                     type='group', groupDef='default',
-                    historyStart=1,historyEnd=60)
+                    historyStart=1,historyEnd=60,
+                    ffloc='C:fftemps')
 
 # to extract the cluster data using user specified concept sets:
 # where definition 1 contains concept_ids: 101,32011,1 and 63434
 #       definition 2 contains concept_ids: 12,13
 #       definition 3 contains concept_ids: 450453,21435324,232,3424,4534435 and 3453
-groupDef <- data.frame(defintion=c(1,1,1,1,2,2,3,3,3,3,3,3),
+groupDef <- data.frame(covariate=c(1,1,1,1,2,2,3,3,3,3,3,3),
                        concept_id =c(c(101,32011,1,63434), c(12,13),
                                      c(450453,21435324,232,3424,4534435,3453))
 data <- dataExtract(dbconnection, cdmDatabaseSchema='cdm_test.dbo',
                     cohortDatabaseSchema='cdm_test.dbo', cohort_id=21,
-                    agegroup = NULL, gender=NULL,
                     type='group', groupDef=groupDef,
-                    historyStart=1,historyEnd=180)
+                    historyStart=1,historyEnd=180,
+                    ffloc='C:fftemps')
 
 }
 \seealso{

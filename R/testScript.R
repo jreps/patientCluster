@@ -2,7 +2,7 @@
   # load library
   library(patientCluster)
   library(h2o)
-  options(fftempdir = "s:/FFtemp")
+  #options(fftempdir = "s:/FFtemp")
   options(ffmaxbytes = min(getOption("ffmaxbytes"),.Machine$integer.max * 12))
 
   # set connection details
@@ -31,9 +31,9 @@
   d1 <- dataExtract(dbconnection, cdmDatabaseSchema,
                     cohortDatabaseSchema=cdmDatabaseSchema,
                     workDatabaseSchema='scratch.dbo',
-                    cohortid=2000006292, agegroup=NULL, gender=NULL,
+                    cohortid=2000006292,  gender=NULL,
                     type='group', groupDef = 'default',
-                    historyStart=1,historyEnd=365,  loc=getwd())
+                    historyStart=1,historyEnd=365,  ffloc="s:/FFtemp")
 
 
   # cluster the data that used predefined groups as features using kmeans into 10 clusters
