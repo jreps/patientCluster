@@ -233,31 +233,33 @@ clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
     }
     clust.result <- do.call(paste0('pc.',method), param)
 
+    ############################
     # foramting the data into nice dataframes:
     clusterDetails <- NULL
     clusterPerson <- NULL
-    if(method=='kmeans'){
-      clusterDetails <- reshape2::melt(clust.result$centers, 'centroid')
-      colnames(clusterDetails) <- c('clusterId','topCaption', 'Score')
 
-      sizes <- aggregate(clust.result$clusters, b=list(clust.result$clusters$predict), FUN=length)[,1:2]
-      colnames(sizes) <- c('clusterId','personCount')
+    clusterDetails <- reshape2::melt(clust.result$centers, 'centroid')
+    colnames(clusterDetails) <- c('clusterId','topCaption', 'Score')
 
-      topicId <- data.frame(topCaption=colnames(clust.result$centers)[-1],
-                            topicId=1:length(colnames(clust.result$centers)[-1]))
-      topicId$topicId <-  topicId$topicId + ifelse(clusterData$metaData$type=='group', 200000, 100000)
+    sizes <- aggregate(clust.result$clusters, b=list(clust.result$clusters$predict), FUN=length)[,1:2]
+    colnames(sizes) <- c('clusterId','personCount')
 
-      clusterDetails <-merge(merge(clusterDetails , sizes, by='clusterId', all.x=T),
-                             topicId,by='topCaption', all.x=T)
-      clusterDetails <-clusterDetails[, c('clusterId', 'topicId',
-                                          'topCaption', 'Score','personCount')]
-      clusterDetails <-clusterDetails[order(clusterDetails$clusterId),]
+    topicId <- data.frame(topCaption=colnames(clust.result$centers)[-1],
+                          topicId=1:length(colnames(clust.result$centers)[-1]))
+    topicId$topicId <-  topicId$topicId + ifelse(clusterData$metaData$type=='group', 200000, 100000)
+
+    clusterDetails <-merge(merge(clusterDetails , sizes, by='clusterId', all.x=T),
+                           topicId,by='topCaption', all.x=T)
+    clusterDetails <-clusterDetails[, c('clusterId', 'topicId',
+                                        'topCaption', 'Score','personCount')]
+    clusterDetails <-clusterDetails[order(clusterDetails$clusterId),]
 
 
-      clusterPerson <- clust.result$clusters
-      colnames(clusterPerson) <- c('clusterId','rowId')
-      clusterPerson$probability <- NA
-    }
+    clusterPerson <- clust.result$clusters
+    colnames(clusterPerson) <- c('clusterId','rowId')
+    clusterPerson$probability <- NA
+    # end nice formatting - maybe add topic formatting?
+    #############################################################
 
 
     metaData <- c(list(size=clusterSize, method=method), clusterData$metaData)
