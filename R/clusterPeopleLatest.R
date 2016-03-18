@@ -241,8 +241,9 @@ clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
     clusterDetails <- reshape2::melt(clust.result$centers, 'centroid')
     colnames(clusterDetails) <- c('clusterId','topCaption', 'Score')
 
-    sizes <- aggregate(clust.result$clusters, b=list(clust.result$clusters$predict), FUN=length)[,1:2]
+    sizes <- aggregate(clust.result$clusters$rowId, b=list(clust.result$clusters$predict), FUN=length)[,1:2]
     colnames(sizes) <- c('clusterId','personCount')
+    sizes$clusterId <- sizes$clusterId+1
 
     topicId <- data.frame(topCaption=colnames(clust.result$centers)[-1],
                           topicId=1:length(colnames(clust.result$centers)[-1]))
@@ -261,7 +262,8 @@ clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
     # end nice formatting - maybe add topic formatting?
     #############################################################
 
-
+    # fix issue with predict strating from 0
+    clust.result$clusters$predict <-clust.result$clusters$predict +1
     metaData <- c(list(size=clusterSize, method=method), clusterData$metaData)
     result <- list(strata=strata,
                    covariates=ff::as.ffdf(covariates),
