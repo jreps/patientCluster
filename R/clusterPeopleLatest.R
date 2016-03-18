@@ -104,7 +104,7 @@ clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
   maxRam <- '4g'
   systemInfo <- Sys.info()
   if(systemInfo['sysname']=="Windows")
-    maxRam <- paste0(memory.size()*0.8,'g')
+    maxRam <- paste0(memory.limit(size=NA)/1000*0.8,'g')
   if(systemInfo['sysname']!="Windows") # need to test this on mac
     maxRam <- paste0(mem.limits(nsize=NA, vsize=NA)*0.8,'g')
   writeLines(paste0('Initiating H2o with max Ram of: ',maxRam))
@@ -233,6 +233,9 @@ clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
     }
     clust.result <- do.call(paste0('pc.',method), param)
 
+    # fix issue with predict strating from 0
+    clust.result$clusters$predict <-clust.result$clusters$predict +1
+
     ############################
     # foramting the data into nice dataframes:
     clusterDetails <- NULL
@@ -243,7 +246,6 @@ clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
 
     sizes <- aggregate(clust.result$clusters$rowId, b=list(clust.result$clusters$predict), FUN=length)[,1:2]
     colnames(sizes) <- c('clusterId','personCount')
-    sizes$clusterId <- sizes$clusterId+1
 
     topicId <- data.frame(topCaption=colnames(clust.result$centers)[-1],
                           topicId=1:length(colnames(clust.result$centers)[-1]))
@@ -255,15 +257,16 @@ clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
                                         'topCaption', 'Score','personCount')]
     clusterDetails <-clusterDetails[order(clusterDetails$clusterId),]
 
-
-    clusterPerson <- clust.result$clusters
-    colnames(clusterPerson) <- c('clusterId','rowId')
+    strata2 <- ff::clone(strata)
+    clusterPerson <- merge(clust.result$clusters,
+                           strata2[,c('ROW_ID', 'SUBJECT_ID', 'COHORT_START_DATE')],
+                           by.x='rowId',by.y='ROW_ID', all.x=T)
+    clusterPerson <- clusterPerson[,!colnames(clusterPerson)%in%c('rowId','ROW_ID')]
+    colnames(clusterPerson) <- c('clusterId','personId','date')
     clusterPerson$probability <- NA
     # end nice formatting - maybe add topic formatting?
     #############################################################
 
-    # fix issue with predict strating from 0
-    clust.result$clusters$predict <-clust.result$clusters$predict +1
     metaData <- c(list(size=clusterSize, method=method), clusterData$metaData)
     result <- list(strata=strata,
                    covariates=ff::as.ffdf(covariates),
