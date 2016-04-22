@@ -103,21 +103,25 @@ clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
   }
   maxRam <- '4g'
   systemInfo <- Sys.info()
-  if(systemInfo['sysname']=="Windows")
-    maxRam <- paste0(memory.limit(size=NA)/1000*0.8,'g')
-  if(systemInfo['sysname']!="Windows") # need to test this on mac
-    maxRam <- paste0(mem.limits(nsize=NA, vsize=NA)*0.8,'g')
-  writeLines(paste0('Initiating H2o with max Ram of: ',maxRam))
-  h2o::h2o.init(nthreads=-1, max_mem_size = maxRam)
-  test <- !is.null(method) & method %in%c('kmeans','glrm', 'concensus') &
-    class(clusterData) == 'clusterData' &
-    (is.null(minAge) | ifelse(!is.null(minAge), class(minAge), 'none')=="numeric" ) &
-    (is.null(maxAge) | ifelse(!is.null(maxAge), class(maxAge), 'none')=="numeric" ) &
-    (is.null(gender) | ifelse(!is.null(gender),gender, 1) %in% c(8507,8532))
+  if(systemInfo['sysname']=="Windows"){
+    maxRam <- paste0(round(memory.limit(size=NA)/1000*0.8),'g')
+    writeLines(paste0('Initiating H2o with max Ram of: ',maxRam))
+    h2o::h2o.init(nthreads=-1, max_mem_size = maxRam)
+  } else { # need to test this on mac
+    #maxRam <- paste0(mem.limits(nsize=NA, vsize=NA)*0.8,'g')
+    writeLines(paste0('Initiating H2o with default Ram - initiate h2o yourself to edit this '))
+    h2o::h2o.init(nthreads=-1)
+    }
+
+  test <- !is.null(method) && method %in%c('kmeans','glrm', 'concensus') &&
+    class(clusterData) == 'clusterData' &&
+    (is.null(minAge) || ifelse(!is.null(minAge), class(minAge), 'none')=="numeric" ) &&
+    (is.null(maxAge) || ifelse(!is.null(maxAge), class(maxAge), 'none')=="numeric" ) &&
+    (is.null(gender) || ifelse(!is.null(gender),gender, 1) %in% c(8507,8532))
 
   if(!test){
-    warning('Wrong input values...')
-    return()}
+    stop('Wrong input values...')
+    }
 
   if(test){
 
@@ -125,7 +129,7 @@ clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
     covariates <- ff::clone(clusterData$covariates)
     covariateRef <- ff::clone(clusterData$covariateRef)
 
-    if(!is.null(minAge) | !is.null(maxAge)){
+    if(!is.null(minAge) || !is.null(maxAge)){
       writeLines('Filtering by age span')
       ageSpan <- c(ifelse(is.null(minAge), 0, minAge),
                    ifelse(is.null(maxAge), 200, maxAge))
@@ -176,8 +180,7 @@ clusterPeople <- function(clusterData, minAge=NULL, maxAge=NULL,  gender=NULL,
     if(length(unique(ff::as.ram(covariates$COVARIATE)))>1000)
       warning('You are clustering on a large number of covariates - methods such as kmeans are likely to have issues due to sparse issue when calculating distance in high dimensional spaces')
     if(length(unique(ff::as.ram(covariates$COVARIATE)))*length(unique(ff::as.ram(covariates$ROW_ID))) > 10000*10000){
-      warning('Matrix is too large - reduce number of covariates for this cluster or select a smaller number of people using age/gender constraints')
-      return()
+      stop('Matrix is too large - reduce number of covariates for this cluster or select a smaller number of people using age/gender constraints')
     }
 
     if (is.function(updateProgress)) {

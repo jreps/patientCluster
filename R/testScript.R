@@ -1,5 +1,9 @@
 .testCode <- function() {
   # load library
+  
+  
+  
+  
   library(patientCluster)
   library(h2o)
   #options(fftempdir = "s:/FFtemp")
@@ -18,6 +22,9 @@
   # initiate h2o (in this example using all cores and 50GB or RAM)
   h2o.init(nthreads=-1, max_mem_size = '50g')
 
+  
+  
+  
   outputFolder <- 'S:/temp/patientClusters'
   dbconnection <- DatabaseConnector::createConnectionDetails(dbms = dbms,
                                                              server = server,
@@ -38,8 +45,10 @@
 
   # cluster the data that used predefined groups as features using kmeans into 10 clusters
   # with normalised scaling prior to clustering.  This only clusters males age between 0 and 100
-  c1 <- clusterPeople(d1, ageSpan=c(0,110), gender=NULL,
-                       method='kmeans', clusterSize=100, normalise=T, fraction=F, binary=F,
+  c1 <- clusterPeople(d1, gender=NULL, maxAge=50,
+                      include.nofeat = F,
+                       method='kmeans', clusterSize=100, glrmFeat = 50, 
+                      normalise=T, fraction=F, binary=F,
                        covariatesToInclude=NULL,covariatesToExclude=NULL,covariatesGroups=NULL)
 
   c1.concensus <- clusterPeople(d1, ageSpan=c(0,100), gender=NULL,
