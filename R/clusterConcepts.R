@@ -19,7 +19,7 @@
 #' clusterConcepts()
 
 # age: age
-clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,workDatabaseSchema=NULL,
+clusterConcepts <- function(dbconnection,cdmDatabaseSchema=NULL,
                        method='kmeans', clusterSize=10, topicSize=NULL, scale=T,
                        covariatesToInclude=NULL,
                        indications=T, dayStart=1,dayEnd=30,

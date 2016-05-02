@@ -7,7 +7,6 @@
 #' @param dbconnection class:connectionDetails - the database connection details requires Library(DatabaseConnector)
 #' @param cdmDatabaseSchema  class:character - database schema containing cdm tables
 #' @param cohortDatabaseSchema  class:character - database schema containing cohort
-#' @param workDatabaseSchema  class:character -database you writing tables to
 #' @param cohortid  class:numeric - id of cohort in cohort table
 #' @param minAge  class:numeric default(NULL)- the minimum age a person in the cohort must be to be included in the data
 #' @param maxAge  class:numeric default(NULL)- the maximum age a person in the cohort must be to be included in the data
@@ -55,7 +54,6 @@
 #'                     ffloc='C:fftemps')
 #'
 dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabaseSchema=NULL,
-                        workDatabaseSchema=NULL,
                         cohortid=100, ageMin=NULL, ageMax=NULL, gender=NULL,
                         type='group', groupDef = 'default',
                         historyStart=1,historyEnd=180,
@@ -116,7 +114,6 @@ dataExtract <- function(dbconnection=NULL, cdmDatabaseSchema=NULL, cohortDatabas
     sql <- SqlRender::readSql(file.path(sql.loc,paste(type,'cohortCluster.sql', sep='')))
     sql <- SqlRender::renderSql(sql,
                                 cdm_database = cdmDatabase,
-                                workDatabase = workDatabaseSchema,
                                 cohort_database_schema=cohortDatabaseSchema,
                                 cohort_ids = cohortid,
                                 cdm_version = '5',

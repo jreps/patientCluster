@@ -4,11 +4,11 @@
 \alias{clusterConcepts}
 \title{clusterConcepts}
 \usage{
-clusterConcepts(dbconnection, cdmDatabaseSchema = NULL,
-  workDatabaseSchema = NULL, method = "kmeans", clusterSize = 10,
-  topicSize = NULL, scale = T, covariatesToInclude = NULL,
-  indications = T, dayStart = 1, dayEnd = 30, use_min_obs = TRUE,
-  min_obs = 100, extraparameters = NULL, updateProgress = NULL, ...)
+clusterConcepts(dbconnection, cdmDatabaseSchema = NULL, method = "kmeans",
+  clusterSize = 10, topicSize = NULL, scale = T,
+  covariatesToInclude = NULL, indications = T, dayStart = 1,
+  dayEnd = 30, use_min_obs = TRUE, min_obs = 100,
+  extraparameters = NULL, updateProgress = NULL, ...)
 }
 \arguments{
 \item{dbconnection}{using DatabaseConnector - connect to cdm database}

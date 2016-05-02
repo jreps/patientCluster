@@ -1,6 +1,5 @@
 -- strata_extractor
 {DEFAULT @cdm_database = 'CDM4_SIM' }
-{DEFAULT @work_database_schema = 'CDM4_SIM.dbo' }
 {DEFAULT @cdm_version == '4'}
 {DEFAULT @cohort_definition_id = 'cohort_concept_id'}
 {DEFAULT @min_count== 10}

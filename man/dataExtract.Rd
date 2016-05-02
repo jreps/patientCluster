@@ -5,10 +5,9 @@
 \title{This extracts the history features for each person in the cohort with the specific age/gender}
 \usage{
 dataExtract(dbconnection = NULL, cdmDatabaseSchema = NULL,
-  cohortDatabaseSchema = NULL, workDatabaseSchema = NULL, cohortid = 100,
-  ageMin = NULL, ageMax = NULL, gender = NULL, type = "group",
-  groupDef = "default", historyStart = 1, historyEnd = 180,
-  ffloc = NULL, debug = NULL, ...)
+  cohortDatabaseSchema = NULL, cohortid = 100, ageMin = NULL,
+  ageMax = NULL, gender = NULL, type = "group", groupDef = "default",
+  historyStart = 1, historyEnd = 180, ffloc = NULL, debug = NULL, ...)
 }
 \arguments{
 \item{dbconnection}{class:connectionDetails - the database connection details requires Library(DatabaseConnector)}
@@ -16,8 +15,6 @@ dataExtract(dbconnection = NULL, cdmDatabaseSchema = NULL,
 \item{cdmDatabaseSchema}{class:character - database schema containing cdm tables}
 
 \item{cohortDatabaseSchema}{class:character - database schema containing cohort}
-
-\item{workDatabaseSchema}{class:character -database you writing tables to}
 
 \item{cohortid}{class:numeric - id of cohort in cohort table}
 
